@@ -426,6 +426,7 @@
   .dash-card .dc-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 5px; }
   .dash-card.gvt .dc-bar { background: var(--blue); }
   .dash-card.pvt .dc-bar { background: var(--green-500); }
+  .dash-card.semi .dc-bar { background: #6231a8; }
   .dash-card.net .dc-bar { background: var(--amber); }
   .dash-card.total .dc-bar { background: var(--green-900); }
 
@@ -634,12 +635,14 @@
         <h4>📘 Master Workbook contents</h4>
         <p>One .xlsx file, all sheets driven by your uploaded data and payment entries:</p>
         <ul class="sheet-list">
-          <li><b>GVT_Vs_PVT</b> — sector summary &amp; paid-pending detail</li>
+          <li><b>GVT_Vs_PVT</b> — GVT / PVT / Semi-GVT sector summary &amp; paid-pending detail</li>
           <li><b>GVT Analysis_1.1</b> — customer-wise MOFT split</li>
           <li><b>Note 1.2</b> — Payment Pending from MOFT (detail)</li>
           <li><b>Note 1.3</b> — Pending Submit to MOFT (detail)</li>
-          <li><b>PVT Analysis 2.1</b> — customer-wise &amp; paid-pending detail</li>
+          <li><b>PVT Analysis 2.1</b> — customer-wise &amp; paid-pending detail (Private only)</li>
           <li><b>Note 2.2</b> — PVT outstanding, customer-wise invoice detail</li>
+          <li><b>Semi-GVT Analysis 2.3</b> — customer-wise &amp; paid-pending detail (Semi-GVT only)</li>
+          <li><b>Note 2.4</b> — Semi-GVT outstanding, customer-wise invoice detail</li>
           <li><b>Sheet1</b> — source A/R ageing data</li>
           <li><b>Customer Master</b> — customer type reference</li>
         </ul>
@@ -810,6 +813,7 @@ function paySummaryHtml(){
   const roll=paymentRollup();
   return `<div class="pay-pill">GVT payments pending: <b>${fmtMoney(roll.gvt)}</b></div>
     <div class="pay-pill">PVT payments pending: <b>${fmtMoney(roll.pvt)}</b></div>
+    <div class="pay-pill">Semi-GVT payments pending: <b>${fmtMoney(roll.semi)}</b></div>
     <div class="pay-pill">Total entered: <b>${fmtMoney(roll.total)}</b> · ${payments.length} row${payments.length===1?'':'s'}</div>`;
 }
 function renderPayments(){
@@ -826,56 +830,62 @@ function renderPayments(){
   document.getElementById('paySummary').innerHTML=paySummaryHtml();
 }
 function paymentRollup(){
-  let gvt=0,pvt=0; const byCust={};
-  for(const p of payments){ const amt=Number(p.amount||0); if(!amt) continue; const c=parsedData.customers.find(x=>x.name===p.customer); const t=c?c.type:''; if(isGvtType(t)) gvt+=amt; else pvt+=amt; if(p.customer) byCust[p.customer]=(byCust[p.customer]||0)+amt; }
-  return {gvt,pvt,total:gvt+pvt,byCust};
+  let gvt=0,pvt=0,semi=0; const byCust={};
+  for(const p of payments){ const amt=Number(p.amount||0); if(!amt) continue; const c=parsedData.customers.find(x=>x.name===p.customer); const t=c?c.type:''; const sec=sectorOf(t); if(sec==='GVT') gvt+=amt; else if(sec==='SEMI') semi+=amt; else pvt+=amt; if(p.customer) byCust[p.customer]=(byCust[p.customer]||0)+amt; }
+  return {gvt,pvt,semi,total:gvt+pvt+semi,byCust};
 }
 function addPayRow(){ payments.push({date:'',customer:'',reference:'',amount:''}); savePayments(); renderPayments(); }
 
 /* ===================== ANALYSIS ===================== */
 function buildAnalysis(){
   const roll=paymentRollup(); const paidByCust=roll.byCust;
-  const gvtCustomers=[],pvtCustomers=[],note12=[],note13=[],note22=[];
+  const gvtCustomers=[],pvtCustomers=[],semiCustomers=[],note12=[],note13=[],note22=[],note24=[];
   for(const c of parsedData.customers){
     const paid=paidByCust[c.name]||0;
-    if(isGvtType(c.type)){
+    const sec=sectorOf(c.type);
+    if(sec==='GVT'){
       const submit=c.pendingMoftTotal, pay=c.pendingPaymentTotal, gross=submit+pay;
       gvtCustomers.push({name:c.name,submit,pay,paid,gross,submitPct:gross?submit/gross:0,payPct:gross?pay/gross:0,net:gross-paid});
       if(c.pendingPayment.length) note12.push({name:c.name,invoices:c.pendingPayment,subtotal:c.pendingPaymentTotal});
       if(c.pendingMoft.length) note13.push({name:c.name,invoices:c.pendingMoft,subtotal:c.pendingMoftTotal});
+    } else if(sec==='SEMI'){
+      semiCustomers.push({name:c.name,qb:c.totalOpen,paid,net:c.totalOpen-paid});
+      if(c.invoices.length) note24.push({name:c.name,invoices:c.invoices,subtotal:c.totalOpen});
     } else {
       pvtCustomers.push({name:c.name,qb:c.totalOpen,paid,net:c.totalOpen-paid});
       if(c.invoices.length) note22.push({name:c.name,invoices:c.invoices,subtotal:c.totalOpen});
     }
   }
-  gvtCustomers.sort((a,b)=>b.gross-a.gross); pvtCustomers.sort((a,b)=>b.qb-a.qb);
-  note22.sort((a,b)=>b.subtotal-a.subtotal);
-  const gvtQB=gvtCustomers.reduce((s,x)=>s+x.gross,0), pvtQB=pvtCustomers.reduce((s,x)=>s+x.qb,0);
+  gvtCustomers.sort((a,b)=>b.gross-a.gross); pvtCustomers.sort((a,b)=>b.qb-a.qb); semiCustomers.sort((a,b)=>b.qb-a.qb);
+  note22.sort((a,b)=>b.subtotal-a.subtotal); note24.sort((a,b)=>b.subtotal-a.subtotal);
+  const gvtQB=gvtCustomers.reduce((s,x)=>s+x.gross,0), pvtQB=pvtCustomers.reduce((s,x)=>s+x.qb,0), semiQB=semiCustomers.reduce((s,x)=>s+x.qb,0);
   const gvtSubmit=gvtCustomers.reduce((s,x)=>s+x.submit,0), gvtPay=gvtCustomers.reduce((s,x)=>s+x.pay,0);
-  const gvtPaid=roll.gvt, pvtPaid=roll.pvt, grandQB=gvtQB+pvtQB;
-  const gvtPaidDetails=[],pvtPaidDetails=[];
-  payments.forEach(p=>{ const amt=Number(p.amount||0); if(!amt&&!p.customer) return; const c=parsedData.customers.find(x=>x.name===p.customer); const t=c?c.type:''; const row={date:p.date,customer:p.customer,reference:p.reference,amount:amt}; if(isGvtType(t)) gvtPaidDetails.push(row); else pvtPaidDetails.push(row); });
-  return { gvtCustomers,pvtCustomers,note12,note13,note22,gvtPaidDetails,pvtPaidDetails,
-    sectors:{ gvt:{qb:gvtQB,paid:gvtPaid,net:gvtQB-gvtPaid,submit:gvtSubmit,pay:gvtPay,pct:grandQB?gvtQB/grandQB:0}, pvt:{qb:pvtQB,paid:pvtPaid,net:pvtQB-pvtPaid,pct:grandQB?pvtQB/grandQB:0}, total:{qb:grandQB,paid:gvtPaid+pvtPaid,net:grandQB-gvtPaid-pvtPaid} } };
+  const gvtPaid=roll.gvt, pvtPaid=roll.pvt, semiPaid=roll.semi, grandQB=gvtQB+pvtQB+semiQB;
+  const gvtPaidDetails=[],pvtPaidDetails=[],semiPaidDetails=[];
+  payments.forEach(p=>{ const amt=Number(p.amount||0); if(!amt&&!p.customer) return; const c=parsedData.customers.find(x=>x.name===p.customer); const t=c?c.type:''; const sec=sectorOf(t); const row={date:p.date,customer:p.customer,reference:p.reference,amount:amt}; if(sec==='GVT') gvtPaidDetails.push(row); else if(sec==='SEMI') semiPaidDetails.push(row); else pvtPaidDetails.push(row); });
+  return { gvtCustomers,pvtCustomers,semiCustomers,note12,note13,note22,note24,gvtPaidDetails,pvtPaidDetails,semiPaidDetails,
+    sectors:{ gvt:{qb:gvtQB,paid:gvtPaid,net:gvtQB-gvtPaid,submit:gvtSubmit,pay:gvtPay,pct:grandQB?gvtQB/grandQB:0}, pvt:{qb:pvtQB,paid:pvtPaid,net:pvtQB-pvtPaid,pct:grandQB?pvtQB/grandQB:0}, semi:{qb:semiQB,paid:semiPaid,net:semiQB-semiPaid,pct:grandQB?semiQB/grandQB:0}, total:{qb:grandQB,paid:gvtPaid+pvtPaid+semiPaid,net:grandQB-gvtPaid-pvtPaid-semiPaid} } };
 }
 
 /* ===================== DASHBOARD (STEP 3) ===================== */
 function renderDashboard(){
   const a=buildAnalysis(); const s=a.sectors; const asOf=parsedData.reportDate||todayLabel();
-  const gvtBarPct=Math.round(s.gvt.pct*100), pvtBarPct=100-gvtBarPct;
+  const gvtBarPct=Math.round(s.gvt.pct*100), pvtBarPct=Math.round(s.pvt.pct*100), semiBarPct=Math.max(0,100-gvtBarPct-pvtBarPct);
   let html=`
     <div class="dash-cards">
       <div class="dash-card total"><div class="dc-bar"></div><div class="dc-label">Total Outstanding (QB)</div><div class="dc-value">${fmtMoney(s.total.qb)}</div><div class="dc-sub">MVR · as of ${escapeHtml(asOf)}</div></div>
       <div class="dash-card gvt"><div class="dc-bar"></div><div class="dc-label">GVT Outstanding</div><div class="dc-value">${fmtMoney(s.gvt.qb)}</div><div class="dc-sub">${fmtPct(s.gvt.pct)} of total</div></div>
       <div class="dash-card pvt"><div class="dc-bar"></div><div class="dc-label">PVT Outstanding</div><div class="dc-value">${fmtMoney(s.pvt.qb)}</div><div class="dc-sub">${fmtPct(s.pvt.pct)} of total</div></div>
+      <div class="dash-card semi"><div class="dc-bar"></div><div class="dc-label">Semi-GVT Outstanding</div><div class="dc-value">${fmtMoney(s.semi.qb)}</div><div class="dc-sub">${fmtPct(s.semi.pct)} of total</div></div>
       <div class="dash-card net"><div class="dc-bar"></div><div class="dc-label">Net Outstanding</div><div class="dc-value">${fmtMoney(s.total.net)}</div><div class="dc-sub">after ${fmtMoney(s.total.paid)} payments pending</div></div>
     </div>
-    <div class="barbox"><span style="background:var(--blue); flex:${gvtBarPct}">GVT ${gvtBarPct}%</span><span style="background:var(--green-500); flex:${pvtBarPct}">PVT ${pvtBarPct}%</span></div>
-    <div class="dash-section"><h3>GVT vs PVT — Sector Summary</h3>
+    <div class="barbox"><span style="background:var(--blue); flex:${gvtBarPct}">GVT ${gvtBarPct}%</span><span style="background:var(--green-500); flex:${pvtBarPct}">PVT ${pvtBarPct}%</span><span style="background:#6231a8; flex:${semiBarPct}">Semi ${semiBarPct}%</span></div>
+    <div class="dash-section"><h3>GVT vs PVT vs Semi-GVT — Sector Summary</h3>
       <table class="atable"><thead><tr><th>Sector</th><th class="num">Total Outstanding — QB</th><th class="num">%</th><th class="num">Paid &amp; Details Pending</th><th class="num">Net Outstanding</th></tr></thead>
       <tbody>
         <tr><td>GVT</td><td class="num">${fmtMoney(s.gvt.qb)}</td><td class="num pct">${fmtPct(s.gvt.pct)}</td><td class="num">${fmtMoney(s.gvt.paid)}</td><td class="num">${fmtMoney(s.gvt.net)}</td></tr>
         <tr><td>PVT</td><td class="num">${fmtMoney(s.pvt.qb)}</td><td class="num pct">${fmtPct(s.pvt.pct)}</td><td class="num">${fmtMoney(s.pvt.paid)}</td><td class="num">${fmtMoney(s.pvt.net)}</td></tr>
+        <tr><td>Semi-GVT</td><td class="num">${fmtMoney(s.semi.qb)}</td><td class="num pct">${fmtPct(s.semi.pct)}</td><td class="num">${fmtMoney(s.semi.paid)}</td><td class="num">${fmtMoney(s.semi.net)}</td></tr>
         <tr class="total-row"><td>Total</td><td class="num">${fmtMoney(s.total.qb)}</td><td class="num"></td><td class="num">${fmtMoney(s.total.paid)}</td><td class="num">${fmtMoney(s.total.net)}</td></tr>
       </tbody></table></div>
     <div class="dash-section"><h3>GVT — Customer-wise MOFT Analysis</h3>
@@ -889,6 +899,12 @@ function renderDashboard(){
       <tbody>
         ${a.pvtCustomers.map((c,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(c.name)}</td><td class="num">${fmtMoney(c.qb)}</td><td class="num">${fmtMoney(c.paid)}</td><td class="num">${fmtMoney(c.net)}</td></tr>`).join('')}
         <tr class="total-row"><td></td><td>Total</td><td class="num">${fmtMoney(a.pvtCustomers.reduce((s,x)=>s+x.qb,0))}</td><td class="num">${fmtMoney(a.pvtCustomers.reduce((s,x)=>s+x.paid,0))}</td><td class="num">${fmtMoney(a.pvtCustomers.reduce((s,x)=>s+x.net,0))}</td></tr>
+      </tbody></table></div>
+    <div class="dash-section"><h3>Semi-GVT — Customer-wise Analysis</h3>
+      <table class="atable"><thead><tr><th>Srn</th><th>Customer</th><th class="num">Outstanding — QB</th><th class="num">Paid &amp; Pending</th><th class="num">Net Outstanding</th></tr></thead>
+      <tbody>
+        ${a.semiCustomers.map((c,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(c.name)}</td><td class="num">${fmtMoney(c.qb)}</td><td class="num">${fmtMoney(c.paid)}</td><td class="num">${fmtMoney(c.net)}</td></tr>`).join('')}
+        <tr class="total-row"><td></td><td>Total</td><td class="num">${fmtMoney(a.semiCustomers.reduce((s,x)=>s+x.qb,0))}</td><td class="num">${fmtMoney(a.semiCustomers.reduce((s,x)=>s+x.paid,0))}</td><td class="num">${fmtMoney(a.semiCustomers.reduce((s,x)=>s+x.net,0))}</td></tr>
       </tbody></table></div>`;
   document.getElementById('dashContent').innerHTML=html;
 }
@@ -905,7 +921,7 @@ function buildDashboardPdf(){
   doc.setFontSize(9); doc.text(`As of: ${asOf}`,pageW-margin,38,{align:'right'}); if(preparedBy) doc.text(`Prepared by: ${preparedBy}`,pageW-margin,51,{align:'right'});
   doc.autoTable({ startY:74,margin:{left:margin,right:margin},theme:'grid',
     head:[['Sector','Total Outstanding - QB','%','Paid & Details Pending','Net Outstanding']],
-    body:[ ['GVT',fmtMoney(s.gvt.qb),fmtPct(s.gvt.pct),fmtMoney(s.gvt.paid),fmtMoney(s.gvt.net)], ['PVT',fmtMoney(s.pvt.qb),fmtPct(s.pvt.pct),fmtMoney(s.pvt.paid),fmtMoney(s.pvt.net)], [{content:'Total',styles:{fontStyle:'bold'}},{content:fmtMoney(s.total.qb),styles:{fontStyle:'bold'}},'',{content:fmtMoney(s.total.paid),styles:{fontStyle:'bold'}},{content:fmtMoney(s.total.net),styles:{fontStyle:'bold'}}] ],
+    body:[ ['GVT',fmtMoney(s.gvt.qb),fmtPct(s.gvt.pct),fmtMoney(s.gvt.paid),fmtMoney(s.gvt.net)], ['PVT',fmtMoney(s.pvt.qb),fmtPct(s.pvt.pct),fmtMoney(s.pvt.paid),fmtMoney(s.pvt.net)], ['Semi-GVT',fmtMoney(s.semi.qb),fmtPct(s.semi.pct),fmtMoney(s.semi.paid),fmtMoney(s.semi.net)], [{content:'Total',styles:{fontStyle:'bold'}},{content:fmtMoney(s.total.qb),styles:{fontStyle:'bold'}},'',{content:fmtMoney(s.total.paid),styles:{fontStyle:'bold'}},{content:fmtMoney(s.total.net),styles:{fontStyle:'bold'}}] ],
     styles:{font:'helvetica',fontSize:9,cellPadding:5}, headStyles:{fillColor:[BRAND.r,BRAND.g,BRAND.b]}, columnStyles:{1:{halign:'right'},2:{halign:'right'},3:{halign:'right'},4:{halign:'right'}} });
   doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(15,61,46); doc.text('GVT — Customer-wise MOFT Analysis',margin,doc.lastAutoTable.finalY+24);
   doc.autoTable({ startY:doc.lastAutoTable.finalY+30,margin:{left:margin,right:margin},theme:'grid',
@@ -919,6 +935,12 @@ function buildDashboardPdf(){
     body:[ ...a.pvtCustomers.map((c,i)=>[i+1,c.name,fmtMoney(c.qb),fmtMoney(c.paid),fmtMoney(c.net)]),
       [{content:'Total',colSpan:2,styles:{fontStyle:'bold'}},{content:fmtMoney(a.pvtCustomers.reduce((s,x)=>s+x.qb,0)),styles:{fontStyle:'bold'}},{content:fmtMoney(a.pvtCustomers.reduce((s,x)=>s+x.paid,0)),styles:{fontStyle:'bold'}},{content:fmtMoney(a.pvtCustomers.reduce((s,x)=>s+x.net,0)),styles:{fontStyle:'bold'}}] ],
     styles:{font:'helvetica',fontSize:8,cellPadding:4}, headStyles:{fillColor:[42,157,111],fontSize:8}, columnStyles:{0:{cellWidth:20},2:{halign:'right'},3:{halign:'right'},4:{halign:'right'}} });
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(15,61,46); doc.text('Semi-GVT — Customer-wise Analysis',margin,doc.lastAutoTable.finalY+24);
+  doc.autoTable({ startY:doc.lastAutoTable.finalY+30,margin:{left:margin,right:margin},theme:'grid',
+    head:[['#','Customer','Outstanding - QB','Paid & Pending','Net Outstanding']],
+    body:[ ...a.semiCustomers.map((c,i)=>[i+1,c.name,fmtMoney(c.qb),fmtMoney(c.paid),fmtMoney(c.net)]),
+      [{content:'Total',colSpan:2,styles:{fontStyle:'bold'}},{content:fmtMoney(a.semiCustomers.reduce((s,x)=>s+x.qb,0)),styles:{fontStyle:'bold'}},{content:fmtMoney(a.semiCustomers.reduce((s,x)=>s+x.paid,0)),styles:{fontStyle:'bold'}},{content:fmtMoney(a.semiCustomers.reduce((s,x)=>s+x.net,0)),styles:{fontStyle:'bold'}}] ],
+    styles:{font:'helvetica',fontSize:8,cellPadding:4}, headStyles:{fillColor:[98,49,168],fontSize:8}, columnStyles:{0:{cellWidth:20},2:{halign:'right'},3:{halign:'right'},4:{halign:'right'}} });
   const pageH=doc.internal.pageSize.getHeight(); doc.setFontSize(8); doc.setTextColor(150,160,155); doc.setFont('helvetica','normal'); doc.text(`Generated ${new Date().toLocaleString('en-GB')}  •  ${company}`,margin,pageH-18);
   return doc;
 }
@@ -945,13 +967,14 @@ function totalRowStyle(ws,rowIdx,fromCol,toCol){ for(let c=fromCol;c<=toCol;c++)
 
 function addSheet_GVTvsPVT(wb,a){
   const ws=wb.addWorksheet('GVT_Vs_PVT'); ws.columns=[{width:6},{width:14},{width:22},{width:10},{width:22},{width:20},{width:30}];
-  styleTitleBlock(ws,parsedData.companyName,'AR Analysis','GVT Vs PVT',parsedData.reportDate||todayLabel());
+  styleTitleBlock(ws,parsedData.companyName,'AR Analysis','GVT Vs PVT Vs Semi-GVT',parsedData.reportDate||todayLabel());
   const s=a.sectors;
   headerRow(ws,7,['Srn','Sector','Total Outstanding - QB','%','Paid & Details Pending','Net Outstanding','Note']);
   txtCell(ws,8,1,1); txtCell(ws,8,2,'GVT'); moneyCell(ws,8,3,s.gvt.qb); pctCell(ws,8,4,s.gvt.pct); moneyCell(ws,8,5,s.gvt.paid); moneyCell(ws,8,6,s.gvt.net); txtCell(ws,8,7,'See GVT Analysis_1.1');
   txtCell(ws,9,1,2); txtCell(ws,9,2,'PVT'); moneyCell(ws,9,3,s.pvt.qb); pctCell(ws,9,4,s.pvt.pct); moneyCell(ws,9,5,s.pvt.paid); moneyCell(ws,9,6,s.pvt.net); txtCell(ws,9,7,'See PVT Analysis 2.1');
-  txtCell(ws,10,2,'Total'); moneyCell(ws,10,3,s.total.qb); moneyCell(ws,10,5,s.total.paid); moneyCell(ws,10,6,s.total.net); totalRowStyle(ws,10,1,7);
-  let r=13; ws.getCell(r,1).value='GVT - Paid and Details Pending'; ws.getCell(r,1).font={name:'Arial',bold:true,size:10,color:{argb:ARGB.green900}};
+  txtCell(ws,10,1,3); txtCell(ws,10,2,'Semi-GVT'); moneyCell(ws,10,3,s.semi.qb); pctCell(ws,10,4,s.semi.pct); moneyCell(ws,10,5,s.semi.paid); moneyCell(ws,10,6,s.semi.net); txtCell(ws,10,7,'See Semi-GVT Analysis 2.3');
+  txtCell(ws,11,2,'Total'); moneyCell(ws,11,3,s.total.qb); moneyCell(ws,11,5,s.total.paid); moneyCell(ws,11,6,s.total.net); totalRowStyle(ws,11,1,7);
+  let r=14; ws.getCell(r,1).value='GVT - Paid and Details Pending'; ws.getCell(r,1).font={name:'Arial',bold:true,size:10,color:{argb:ARGB.green900}};
   r++; headerRow(ws,r,['Srn','Inv/Pmt Date','Customer name','Reference','Amount']); r++;
   a.gvtPaidDetails.forEach((p,i)=>{ txtCell(ws,r,1,i+1); txtCell(ws,r,2,p.date); txtCell(ws,r,3,p.customer); txtCell(ws,r,4,p.reference); moneyCell(ws,r,5,p.amount); r++; });
   moneyCell(ws,r,5,a.gvtPaidDetails.reduce((s,x)=>s+x.amount,0)); totalRowStyle(ws,r,1,5); r+=2;
@@ -959,6 +982,10 @@ function addSheet_GVTvsPVT(wb,a){
   r++; headerRow(ws,r,['Srn','Pmt Date','Customer name','Reference','Amount']); r++;
   a.pvtPaidDetails.forEach((p,i)=>{ txtCell(ws,r,1,i+1); txtCell(ws,r,2,p.date); txtCell(ws,r,3,p.customer); txtCell(ws,r,4,p.reference); moneyCell(ws,r,5,p.amount); r++; });
   moneyCell(ws,r,5,a.pvtPaidDetails.reduce((s,x)=>s+x.amount,0)); totalRowStyle(ws,r,1,5); r+=2;
+  ws.getCell(r,1).value='Semi-GVT - Paid and Details Pending'; ws.getCell(r,1).font={name:'Arial',bold:true,size:10,color:{argb:ARGB.green900}};
+  r++; headerRow(ws,r,['Srn','Pmt Date','Customer name','Reference','Amount']); r++;
+  a.semiPaidDetails.forEach((p,i)=>{ txtCell(ws,r,1,i+1); txtCell(ws,r,2,p.date); txtCell(ws,r,3,p.customer); txtCell(ws,r,4,p.reference); moneyCell(ws,r,5,p.amount); r++; });
+  moneyCell(ws,r,5,a.semiPaidDetails.reduce((s,x)=>s+x.amount,0)); totalRowStyle(ws,r,1,5); r+=2;
   txtCell(ws,r,1,'Prepared by:',{bold:true}); txtCell(ws,r,2,(document.getElementById('preparedBy')?.value||'').trim()); r++;
   txtCell(ws,r,1,'Date:',{bold:true}); txtCell(ws,r,2,todayLabel());
 }
@@ -997,6 +1024,20 @@ function addSheet_PVTAnalysis(wb,a){
   txtCell(ws,r,1,'Prepared by:',{bold:true}); txtCell(ws,r,2,(document.getElementById('preparedBy')?.value||'').trim()); r++;
   txtCell(ws,r,1,'Date:',{bold:true}); txtCell(ws,r,2,todayLabel());
 }
+function addSheet_SemiAnalysis(wb,a){
+  const ws=wb.addWorksheet('Semi-GVT Analysis 2.3'); ws.columns=[{width:6},{width:30},{width:22},{width:22},{width:22}];
+  styleTitleBlock(ws,parsedData.companyName,'AR Analysis','Semi-GVT',parsedData.reportDate||todayLabel());
+  ws.getCell('C6').value='Please refer Note 2.4'; ws.getCell('C6').font={name:'Arial',italic:true,size:9,color:{argb:ARGB.blue}};
+  headerRow(ws,7,['Srn','Customer Name','Outstanding Amount - QB','Paid & Details Pending','Net Total Outstanding']);
+  let r=8; a.semiCustomers.forEach((c,i)=>{ txtCell(ws,r,1,i+1); txtCell(ws,r,2,c.name); moneyCell(ws,r,3,c.qb); moneyCell(ws,r,4,c.paid); moneyCell(ws,r,5,c.net); r++; });
+  txtCell(ws,r,2,'Total'); moneyCell(ws,r,3,a.semiCustomers.reduce((s,x)=>s+x.qb,0)); moneyCell(ws,r,4,a.semiCustomers.reduce((s,x)=>s+x.paid,0)); moneyCell(ws,r,5,a.semiCustomers.reduce((s,x)=>s+x.net,0)); totalRowStyle(ws,r,1,5); r+=2;
+  ws.getCell(r,1).value='Semi-GVT - Paid and Details Pending'; ws.getCell(r,1).font={name:'Arial',bold:true,size:10,color:{argb:ARGB.green900}}; r++;
+  headerRow(ws,r,['Srn','Payment Date','Customer name','Reference','Amount']); r++;
+  a.semiPaidDetails.forEach((p,i)=>{ txtCell(ws,r,1,i+1); txtCell(ws,r,2,p.date); txtCell(ws,r,3,p.customer); txtCell(ws,r,4,p.reference); moneyCell(ws,r,5,p.amount); r++; });
+  moneyCell(ws,r,5,a.semiPaidDetails.reduce((s,x)=>s+x.amount,0)); totalRowStyle(ws,r,1,5); r+=2;
+  txtCell(ws,r,1,'Prepared by:',{bold:true}); txtCell(ws,r,2,(document.getElementById('preparedBy')?.value||'').trim()); r++;
+  txtCell(ws,r,1,'Date:',{bold:true}); txtCell(ws,r,2,todayLabel());
+}
 function addSheet_RawAOA(wb,sheetName,aoa){
   if(!aoa) return; const ws=wb.addWorksheet(sheetName); let maxC=0;
   aoa.forEach((row,ri)=>{ row.forEach((v,ci)=>{ const cell=ws.getCell(ri+1,ci+1); cell.value=(v===''?null:v); cell.font={name:'Arial',size:9}; if(typeof v==='number') cell.numFmt='#,##0.00'; maxC=Math.max(maxC,ci+1); }); });
@@ -1007,7 +1048,9 @@ async function buildSummaryWorkbook(includeNotesAndRaw){
   addSheet_GVTvsPVT(wb,a); addSheet_GVTAnalysis(wb,a);
   if(includeNotesAndRaw){ addSheet_Note(wb,'Note1.2','Note 1.2','Payment Pending from MOFT',a.note12); addSheet_Note(wb,'Note1.3','Note 1.3','Invoices Pending Submit to MOFT',a.note13); }
   addSheet_PVTAnalysis(wb,a);
-  if(includeNotesAndRaw){ addSheet_Note(wb,'Note2.2','Note 2.2','PVT Outstanding Balance — Customer-wise',a.note22); addSheet_RawAOA(wb,'Sheet1',parsedData.rawDataAOA); addSheet_RawAOA(wb,'Customer Master',parsedData.rawMasterAOA); }
+  if(includeNotesAndRaw) addSheet_Note(wb,'Note2.2','Note 2.2','PVT Outstanding Balance — Customer-wise',a.note22);
+  addSheet_SemiAnalysis(wb,a);
+  if(includeNotesAndRaw){ addSheet_Note(wb,'Note2.4','Note 2.4','Semi-GVT Outstanding Balance — Customer-wise',a.note24); addSheet_RawAOA(wb,'Sheet1',parsedData.rawDataAOA); addSheet_RawAOA(wb,'Customer Master',parsedData.rawMasterAOA); }
   return await wb.xlsx.writeBuffer();
 }
 function downloadBuffer(buf,filename){ const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url); }
