@@ -1,0 +1,26 @@
+:root {
+  --green-900: #0f3d2e; --green-700: #1a6b4f; --green-500: #2a9d6f;
+  --green-100: #e6f4ee; --green-50: #f3faf6; --ink-900: #0d1f17;
+  --ink-500: #5b6c64; --ink-100: #d8e0dc; --bg: #f6f8f6; --surface: #fff;
+  --amber: #b76e00; --blue: #0a5fa8; --semi: #6231a8;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink-900); font-family: 'Manrope', system-ui, sans-serif; font-size: 14px; }
+a { color: var(--green-700); text-decoration: none; }
+.topnav { display: flex; justify-content: space-between; align-items: center; padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--ink-100); }
+.topnav-left { display: flex; align-items: center; gap: 18px; }
+.topnav-right { display: flex; align-items: center; gap: 12px; }
+.brand { font-weight: 800; color: var(--green-900); font-size: 16px; }
+.company-pill { background: var(--green-100); color: var(--green-700); padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.app-main { max-width: 1200px; margin: 0 auto; padding: 24px; }
+table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 10px; overflow: hidden; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--ink-100); font-size: 13px; }
+th { background: var(--green-700); color: #fff; }
+.badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.badge.GVT { background: #e6f1fb; color: var(--blue); }
+.badge.PVT { background: #fff5e0; color: var(--amber); }
+.badge.SEMI { background: #f0e9fb; color: var(--semi); }
+.card { background: var(--surface); border: 1px solid var(--ink-100); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+input, select, textarea, button { font-family: inherit; font-size: 13px; padding: 7px 10px; border: 1px solid var(--ink-100); border-radius: 8px; }
+button { background: var(--green-700); color: #fff; border: none; cursor: pointer; }
+button.secondary { background: var(--surface); color: var(--green-700); border: 1px solid var(--green-700); }
