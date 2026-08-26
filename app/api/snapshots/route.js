@@ -59,42 +59,50 @@ export async function POST(req) {
     returning *
   `;
 
-  // Upsert customers seen in this file (new customers get created automatically;
-  // existing ones keep their profile — only type is refreshed from the source file).
-  const uniqueCustomers = new Map();
-  for (const inv of parsed.invoices) {
-    if (!uniqueCustomers.has(inv.customerName)) uniqueCustomers.set(inv.customerName, sectorOf(inv.customerType));
-  }
-  const customerIdByName = {};
-  for (const [name, type] of uniqueCustomers) {
-    const [row] = await sql`
-      insert into customers (company_id, name, type)
-      values (${company.id}, ${name}, ${type || 'PVT'})
-      on conflict (company_id, name) do update set
-        type = coalesce(nullif(excluded.type, ''), customers.type), updated_at = now()
-      returning id
-    `;
-    customerIdByName[name] = row.id;
-  }
+  try {
+    // Upsert customers seen in this file (new customers get created automatically;
+    // existing ones keep their profile — only type is refreshed from the source file).
+    const uniqueCustomers = new Map();
+    for (const inv of parsed.invoices) {
+      if (!uniqueCustomers.has(inv.customerName)) uniqueCustomers.set(inv.customerName, sectorOf(inv.customerType));
+    }
+    const customerIdByName = {};
+    for (const [name, type] of uniqueCustomers) {
+      const [row] = await sql`
+        insert into customers (company_id, name, type)
+        values (${company.id}, ${name}, ${type || 'PVT'})
+        on conflict (company_id, name) do update set
+          type = coalesce(nullif(excluded.type, ''), customers.type), updated_at = now()
+        returning id
+      `;
+      customerIdByName[name] = row.id;
+    }
 
-  // Bulk insert invoice lines for this snapshot.
-  for (const inv of parsed.invoices) {
-    await sql`
-      insert into ar_invoices
-        (snapshot_id, customer_id, customer_name_raw, txn_date, txn_type, number, po_number,
-         due_date, amount, open_balance, pgs_raw, status, status_class, details_pending)
-      values (
-        ${snapshot.id}, ${customerIdByName[inv.customerName]}, ${inv.customerName}, ${inv.date}, ${inv.type},
-        ${inv.number}, ${inv.po}, ${inv.due}, ${inv.amount}, ${inv.open}, ${inv.pgs}, ${inv.status},
-        ${inv.statusClass}, ${inv.details}
-      )
-    `;
-  }
+    // Bulk insert invoice lines for this snapshot.
+    for (const inv of parsed.invoices) {
+      await sql`
+        insert into ar_invoices
+          (snapshot_id, customer_id, customer_name_raw, txn_date, txn_type, number, po_number,
+           due_date, amount, open_balance, pgs_raw, status, status_class, details_pending)
+        values (
+          ${snapshot.id}, ${customerIdByName[inv.customerName]}, ${inv.customerName}, ${inv.date}, ${inv.type},
+          ${inv.number}, ${inv.po}, ${inv.due}, ${inv.amount}, ${inv.open}, ${inv.pgs}, ${inv.status},
+          ${inv.statusClass}, ${inv.details}
+        )
+      `;
+    }
 
-  return Response.json({
-    snapshot,
-    diagnostics: parsed.diagnostics,
-    customersFound: uniqueCustomers.size,
-    invoicesProcessed: parsed.invoices.length,
-  });
+    return Response.json({
+      snapshot,
+      diagnostics: parsed.diagnostics,
+      customersFound: uniqueCustomers.size,
+      invoicesProcessed: parsed.invoices.length,
+    });
+  } catch (e) {
+    // Never leave a half-written snapshot behind — it would silently become
+    // the "latest" report (with wrong/missing invoices) and could also block
+    // a legitimate re-upload of the same file as a false "older report" reject.
+    await sql`delete from ar_snapshots where id = ${snapshot.id}`;
+    return new Response(`Upload failed while saving invoice data: ${e.message}. Nothing was saved — please try again.`, { status: 500 });
+  }
 }
