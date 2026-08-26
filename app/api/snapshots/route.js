@@ -63,7 +63,7 @@ export async function POST(req) {
   // existing ones keep their profile — only type is refreshed from the source file).
   const uniqueCustomers = new Map();
   for (const inv of parsed.invoices) {
-    if (!uniqueCustomers.has(inv.customerName)) uniqueCustomers.set(inv.customerName, inv.customerType);
+    if (!uniqueCustomers.has(inv.customerName)) uniqueCustomers.set(inv.customerName, sectorOf(inv.customerType));
   }
   const customerIdByName = {};
   for (const [name, type] of uniqueCustomers) {
