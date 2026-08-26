@@ -7,7 +7,7 @@ export function middleware(req) {
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p)) || pathname.startsWith('/_next')) {
     return NextResponse.next();
   }
-  const sessionCookie = req.cookies.get('better-auth.session_token');
+  const sessionCookie = req.cookies.get('__Secure-better-auth.session_token') || req.cookies.get('better-auth.session_token');
   if (!sessionCookie) {
     const url = req.nextUrl.clone();
     url.pathname = '/login';

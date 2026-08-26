@@ -1,12 +1,22 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
+  const [checking, setChecking] = useState(true);
   const router = useRouter();
+
+  // If a session already exists (e.g. a previous sign-in succeeded but this
+  // page didn't get to redirect, or the tab was reopened), skip straight past.
+  useEffect(() => {
+    fetch('/api/auth/get-session')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((session) => { if (session?.user) router.replace('/select-company'); else setChecking(false); })
+      .catch(() => setChecking(false));
+  }, [router]);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -16,9 +26,15 @@ export default function LoginPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
-    if (!res.ok) { setErr('Invalid email or password.'); return; }
+    if (!res.ok) {
+      if (res.status === 429) setErr('Too many attempts — please wait a minute and try again.');
+      else setErr('Invalid email or password.');
+      return;
+    }
     router.push('/select-company');
   }
+
+  if (checking) return null;
 
   return (
     <div style={{ maxWidth: 360, margin: '80px auto' }}>
