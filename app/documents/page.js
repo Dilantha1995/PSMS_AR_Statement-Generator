@@ -25,7 +25,7 @@ export default async function DocumentsPage() {
     <div>
       <h2>Documents — {company.name}</h2>
       <p style={{ color: 'var(--ink-500)' }}>Every dashboard report and statement generated for {company.name}, always downloadable again.</p>
-      <table>
+      <div className="table-scroll"><table>
         <thead><tr><th>Generated</th><th>Type</th><th>Customer</th><th>Format</th><th>By</th><th></th></tr></thead>
         <tbody>
           {docs.map((d) => (
@@ -40,7 +40,7 @@ export default async function DocumentsPage() {
           ))}
           {!docs.length && <tr><td colSpan={6}>No documents generated yet.</td></tr>}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

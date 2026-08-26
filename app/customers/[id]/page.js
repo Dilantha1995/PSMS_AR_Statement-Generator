@@ -130,7 +130,7 @@ export default async function CustomerDetailPage({ params }) {
 
       <div className="card">
         <h4>Follow-up history</h4>
-        <table>
+        <div className="table-scroll"><table>
           <thead><tr><th>Date</th><th>Outcome</th><th>Note</th><th>Next action</th><th>By</th></tr></thead>
           <tbody>
             {followups.map((f) => (
@@ -144,7 +144,7 @@ export default async function CustomerDetailPage({ params }) {
             ))}
             {!followups.length && <tr><td colSpan={5}>No follow-ups logged yet.</td></tr>}
           </tbody>
-        </table>
+        </table></div>
       </div>
     </div>
   );

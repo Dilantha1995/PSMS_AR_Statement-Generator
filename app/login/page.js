@@ -37,7 +37,7 @@ export default function LoginPage() {
   if (checking) return null;
 
   return (
-    <div style={{ maxWidth: 360, margin: '80px auto' }}>
+    <div style={{ maxWidth: 360, width: '100%', margin: '48px auto', padding: '0 16px' }}>
       <h2>AR Suite — Sign in</h2>
       <form onSubmit={onSubmit} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />

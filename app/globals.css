@@ -5,22 +5,68 @@
   --amber: #b76e00; --blue: #0a5fa8; --semi: #6231a8;
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink-900); font-family: 'Manrope', system-ui, sans-serif; font-size: 14px; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink-900); font-family: 'Manrope', system-ui, sans-serif; font-size: 14px; -webkit-tap-highlight-color: transparent; }
 a { color: var(--green-700); text-decoration: none; }
-.topnav { display: flex; justify-content: space-between; align-items: center; padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--ink-100); }
-.topnav-left { display: flex; align-items: center; gap: 18px; }
-.topnav-right { display: flex; align-items: center; gap: 12px; }
-.brand { font-weight: 800; color: var(--green-900); font-size: 16px; }
-.company-pill { background: var(--green-100); color: var(--green-700); padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
-.app-main { max-width: 1200px; margin: 0 auto; padding: 24px; }
-table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 10px; overflow: hidden; }
-th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--ink-100); font-size: 13px; }
-th { background: var(--green-700); color: #fff; }
-.badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+
+/* ---------- Top nav ---------- */
+.topnav { background: var(--surface); border-bottom: 1px solid var(--ink-100); position: sticky; top: 0; z-index: 20; }
+.topnav-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; }
+.topnav-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.topnav-right { display: flex; align-items: center; gap: 10px; }
+.brand { font-weight: 800; color: var(--green-900); font-size: 16px; white-space: nowrap; }
+.topnav-name { font-size: 13px; color: var(--ink-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+.company-pill { background: var(--green-100); color: var(--green-700); padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+
+.hamburger { display: none; flex-direction: column; justify-content: center; gap: 4px; width: 34px; height: 34px; background: transparent; border: 1px solid var(--ink-100); border-radius: 8px; padding: 0; }
+.hamburger span { display: block; width: 16px; height: 2px; background: var(--ink-900); margin: 0 auto; border-radius: 2px; }
+
+.topnav-links { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 16px 10px; }
+.topnav-links a { padding: 7px 10px; border-radius: 8px; font-size: 13px; color: var(--ink-500); }
+.topnav-links a.active, .topnav-links a:hover { background: var(--green-100); color: var(--green-700); }
+.signout-mobile { display: none; }
+
+/* ---------- Layout ---------- */
+.app-main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 48px; }
+h2 { font-size: 20px; }
+
+/* ---------- Tables: horizontal scroll wrapper so wide analysis tables never break layout ---------- */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; }
+table { width: 100%; min-width: 560px; border-collapse: collapse; background: var(--surface); }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--ink-100); font-size: 13px; white-space: nowrap; }
+th { background: var(--green-700); color: #fff; position: sticky; top: 0; }
+.total-row td { background: var(--green-50); font-weight: 700; }
+
+.badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
 .badge.GVT { background: #e6f1fb; color: var(--blue); }
 .badge.PVT { background: #fff5e0; color: var(--amber); }
 .badge.SEMI { background: #f0e9fb; color: var(--semi); }
+
 .card { background: var(--surface); border: 1px solid var(--ink-100); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
-input, select, textarea, button { font-family: inherit; font-size: 13px; padding: 7px 10px; border: 1px solid var(--ink-100); border-radius: 8px; }
-button { background: var(--green-700); color: #fff; border: none; cursor: pointer; }
+
+input, select, textarea, button {
+  font-family: inherit; font-size: 16px; /* 16px prevents iOS auto-zoom on focus */
+  padding: 9px 12px; border: 1px solid var(--ink-100); border-radius: 8px;
+}
+label { font-size: 13px; color: var(--ink-500); }
+button { background: var(--green-700); color: #fff; border: none; cursor: pointer; font-size: 14px; min-height: 40px; }
 button.secondary { background: var(--surface); color: var(--green-700); border: 1px solid var(--green-700); }
+
+/* ---------- Mobile breakpoint ---------- */
+@media (max-width: 760px) {
+  .app-main { padding: 14px 10px 40px; }
+  h2 { font-size: 18px; }
+  .hamburger { display: flex; }
+  .topnav-name { display: none; }
+  .topnav-links { display: none; flex-direction: column; gap: 2px; }
+  .topnav-links.open { display: flex; }
+  .topnav-links a { padding: 10px 12px; }
+  .signout-mobile { display: block; margin-top: 6px; }
+  .signout-mobile button { width: 100%; }
+  .card { padding: 14px; }
+  .card > div[style*="justify-content: space-between"] { flex-direction: column; align-items: flex-start !important; }
+  th, td { padding: 7px 9px; font-size: 12.5px; }
+  input, select, textarea { width: 100%; }
+  form label { display: block; width: 100%; margin-bottom: 6px; }
+  form { width: 100%; }
+}

@@ -52,7 +52,7 @@ export default async function DashboardPage() {
 
           <div className="card">
             <h4>Sector Summary</h4>
-            <table>
+            <div className="table-scroll"><table>
               <thead><tr><th>Sector</th><th style={{ textAlign: 'right' }}>Total Outstanding - QB</th><th style={{ textAlign: 'right' }}>%</th><th style={{ textAlign: 'right' }}>Paid &amp; Details Pending</th><th style={{ textAlign: 'right' }}>Net Outstanding</th></tr></thead>
               <tbody>
                 <tr><td><span className="badge GVT">GVT</span></td><td style={{ textAlign: 'right' }}>{fmt(analysis.sectors.gvt.qb)}</td><td style={{ textAlign: 'right' }}>{pct(analysis.sectors.gvt.pct)}</td><td style={{ textAlign: 'right' }}>{fmt(analysis.sectors.gvt.paid)}</td><td style={{ textAlign: 'right' }}>{fmt(analysis.sectors.gvt.net)}</td></tr>
@@ -60,12 +60,12 @@ export default async function DashboardPage() {
                 <tr><td><span className="badge SEMI">Semi-GVT</span></td><td style={{ textAlign: 'right' }}>{fmt(analysis.sectors.semi.qb)}</td><td style={{ textAlign: 'right' }}>{pct(analysis.sectors.semi.pct)}</td><td style={{ textAlign: 'right' }}>{fmt(analysis.sectors.semi.paid)}</td><td style={{ textAlign: 'right' }}>{fmt(analysis.sectors.semi.net)}</td></tr>
                 <tr className="total-row"><td><strong>Total</strong></td><td style={{ textAlign: 'right' }}><strong>{fmt(analysis.sectors.total.qb)}</strong></td><td></td><td style={{ textAlign: 'right' }}><strong>{fmt(analysis.sectors.total.paid)}</strong></td><td style={{ textAlign: 'right' }}><strong>{fmt(analysis.sectors.total.net)}</strong></td></tr>
               </tbody>
-            </table>
+            </table></div>
           </div>
 
           <div className="card">
             <h4>GVT — Customer-wise MOFT Analysis</h4>
-            <table>
+            <div className="table-scroll"><table>
               <thead><tr><th>#</th><th>Customer</th><th style={{ textAlign: 'right' }}>Not Submitted to MOFT</th><th style={{ textAlign: 'right' }}>%</th><th style={{ textAlign: 'right' }}>Payment Pending from MOFT</th><th style={{ textAlign: 'right' }}>%</th><th style={{ textAlign: 'right' }}>Paid &amp; Pending</th><th style={{ textAlign: 'right' }}>Total Outstanding</th></tr></thead>
               <tbody>
                 {analysis.gvtCustomers.map((c, i) => (
@@ -84,12 +84,12 @@ export default async function DashboardPage() {
                 </tr>
                 {!analysis.gvtCustomers.length && <tr><td colSpan={8}>No GVT customers in this report.</td></tr>}
               </tbody>
-            </table>
+            </table></div>
           </div>
 
           <div className="card">
             <h4>PVT — Customer-wise Analysis</h4>
-            <table>
+            <div className="table-scroll"><table>
               <thead><tr><th>#</th><th>Customer</th><th style={{ textAlign: 'right' }}>Outstanding - QB</th><th style={{ textAlign: 'right' }}>Paid &amp; Pending</th><th style={{ textAlign: 'right' }}>Net Outstanding</th></tr></thead>
               <tbody>
                 {analysis.pvtCustomers.map((c, i) => (
@@ -102,12 +102,12 @@ export default async function DashboardPage() {
                 </tr>
                 {!analysis.pvtCustomers.length && <tr><td colSpan={5}>No PVT customers in this report.</td></tr>}
               </tbody>
-            </table>
+            </table></div>
           </div>
 
           <div className="card">
             <h4>Semi-GVT — Customer-wise Analysis</h4>
-            <table>
+            <div className="table-scroll"><table>
               <thead><tr><th>#</th><th>Customer</th><th style={{ textAlign: 'right' }}>Outstanding - QB</th><th style={{ textAlign: 'right' }}>Paid &amp; Pending</th><th style={{ textAlign: 'right' }}>Net Outstanding</th></tr></thead>
               <tbody>
                 {analysis.semiCustomers.map((c, i) => (
@@ -120,7 +120,7 @@ export default async function DashboardPage() {
                 </tr>
                 {!analysis.semiCustomers.length && <tr><td colSpan={5}>No Semi-GVT customers in this report.</td></tr>}
               </tbody>
-            </table>
+            </table></div>
           </div>
 
           <PaymentsEntry snapshotId={snapshots[0].id} customers={customers} />
@@ -129,7 +129,7 @@ export default async function DashboardPage() {
 
       <div className="card">
         <h4>Upload history</h4>
-        <table>
+        <div className="table-scroll"><table>
           <thead><tr><th>Uploaded</th><th>Report date</th><th>File</th><th>Invoices</th><th style={{ textAlign: 'right' }}>Total open</th><th>By</th></tr></thead>
           <tbody>
             {snapshots.map((s) => (
@@ -144,7 +144,7 @@ export default async function DashboardPage() {
             ))}
             {!snapshots.length && <tr><td colSpan={6}>No uploads yet — upload your first A/R ageing report above.</td></tr>}
           </tbody>
-        </table>
+        </table></div>
       </div>
     </div>
   );

@@ -28,7 +28,7 @@ export default async function SoaPage() {
     <div>
       <h2>SOA Generator — {company.name}</h2>
       <p style={{ color: 'var(--ink-500)' }}>Snapshot: {snapshot.report_date || snapshot.uploaded_at?.slice(0,10)} · {customers.length} customers</p>
-      <table>
+      <div className="table-scroll"><table>
         <thead><tr><th>Customer</th><th>Type</th><th style={{ textAlign: 'right' }}>Open Balance</th><th>Statements</th></tr></thead>
         <tbody>
           {customers.map((c) => (
@@ -49,7 +49,7 @@ export default async function SoaPage() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

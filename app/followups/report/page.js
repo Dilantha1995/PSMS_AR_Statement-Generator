@@ -44,7 +44,7 @@ export default async function FollowupReportPage({ searchParams }) {
 
       <p style={{ color: 'var(--ink-500)' }}>{rows.length} follow-up{rows.length === 1 ? '' : 's'} · {totalDiscussed.toLocaleString(undefined, { minimumFractionDigits: 2 })} discussed in total</p>
 
-      <table>
+      <div className="table-scroll"><table>
         <thead><tr><th>Date</th><th>Customer</th><th>Outcome</th><th>Note</th><th style={{ textAlign: 'right' }}>Amount</th><th>Next action</th><th>By</th></tr></thead>
         <tbody>
           {rows.map((r) => (
@@ -60,7 +60,7 @@ export default async function FollowupReportPage({ searchParams }) {
           ))}
           {!rows.length && <tr><td colSpan={7}>No follow-ups in this period.</td></tr>}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

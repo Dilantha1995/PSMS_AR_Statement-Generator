@@ -24,11 +24,11 @@ export default async function SelectCompanyPage() {
     <div>
       <h2>Select a company</h2>
       <p style={{ color: 'var(--ink-500)' }}>Everything after this — customers, uploads, statements, follow-ups — is scoped to the company you pick here.</p>
-      <div style={{ display: 'flex', gap: 16 }}>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
         {companies.map((c) => (
-          <form action={pickCompany} key={c.id}>
+          <form action={pickCompany} key={c.id} style={{ flex: '1 1 220px', maxWidth: 280 }}>
             <input type="hidden" name="companyId" value={c.id} />
-            <button type="submit" className="card" style={{ cursor: 'pointer', minWidth: 220, textAlign: 'left', background: 'var(--surface)', color: 'inherit', border: '1.5px solid var(--ink-100)' }}>
+            <button type="submit" className="card" style={{ cursor: 'pointer', width: '100%', textAlign: 'left', background: 'var(--surface)', color: 'inherit', border: '1.5px solid var(--ink-100)' }}>
               <div style={{ fontSize: 12, color: 'var(--green-700)', fontWeight: 700 }}>{c.code}</div>
               <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4 }}>{c.name}</div>
             </button>

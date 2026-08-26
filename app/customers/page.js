@@ -54,7 +54,7 @@ export default async function CustomersPage({ searchParams }) {
         </form>
       </details>
 
-      <table>
+      <div className="table-scroll"><table>
         <thead><tr><th>Customer</th><th>Type</th><th style={{ textAlign: 'right' }}>Latest Open Balance</th><th></th></tr></thead>
         <tbody>
           {customers.map((c) => (
@@ -66,7 +66,7 @@ export default async function CustomersPage({ searchParams }) {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

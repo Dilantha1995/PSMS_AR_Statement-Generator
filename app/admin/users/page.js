@@ -88,7 +88,7 @@ export default async function AdminUsersPage({ searchParams }) {
         </form>
       </div>
 
-      <table>
+      <div className="table-scroll"><table>
         <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Companies</th><th></th></tr></thead>
         <tbody>
           {users.map((u) => (
@@ -107,7 +107,7 @@ export default async function AdminUsersPage({ searchParams }) {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }
