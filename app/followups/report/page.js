@@ -9,6 +9,7 @@ export default async function FollowupReportPage({ searchParams }) {
   const from = searchParams?.from || new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
   const to = searchParams?.to || new Date().toISOString().slice(0, 10);
   const customerId = searchParams?.customer_id || '';
+  const customerIdParam = customerId || null;
 
   const [customers, rows] = await Promise.all([
     sql`select id, name from customers where company_id=${company.id} order by name`,
@@ -19,7 +20,7 @@ export default async function FollowupReportPage({ searchParams }) {
       left join app_users u on u.id = f.logged_by
       where f.company_id = ${company.id}
         and f.followup_date between ${from} and ${to}
-        and (${customerId} = '' or f.customer_id = ${customerId})
+        and (${customerIdParam}::uuid is null or f.customer_id = ${customerIdParam}::uuid)
       order by f.followup_date desc, c.name
     `,
   ]);
