@@ -9,6 +9,15 @@ const KINDS_GVT = [
 ];
 const KINDS_OTHER = [['soa', 'SOA']];
 
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 export default function GenerateButtons({ customerId, customerName, isGvt, companyName, reportDate, snapshotId }) {
   const [busy, setBusy] = useState(false);
 
@@ -18,17 +27,22 @@ export default function GenerateButtons({ customerId, customerName, isGvt, compa
       const res = await fetch(`/api/customers/${customerId}/invoices`);
       const { invoices } = await res.json();
       const args = { companyName, reportDate, customerName, kind, invoices };
+      let filename, base64;
       if (format === 'pdf') {
-        const { doc, filename } = buildCustomerPdf(args);
-        doc.save(`${filename}.pdf`);
+        const built = buildCustomerPdf(args);
+        built.doc.save(`${built.filename}.pdf`);
+        filename = `${built.filename}.pdf`;
+        base64 = built.doc.output('datauristring').split(',')[1];
       } else {
-        const { blob, filename } = buildCustomerXlsx(args);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = `${filename}.xlsx`; a.click(); URL.revokeObjectURL(url);
+        const built = buildCustomerXlsx(args);
+        const url = URL.createObjectURL(built.blob);
+        const a = document.createElement('a'); a.href = url; a.download = `${built.filename}.xlsx`; a.click(); URL.revokeObjectURL(url);
+        filename = `${built.filename}.xlsx`;
+        base64 = await blobToBase64(built.blob);
       }
-      await fetch('/api/statements', {
+      await fetch('/api/documents', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer_id: customerId, snapshot_id: snapshotId, kind, format }),
+        body: JSON.stringify({ customer_id: customerId, snapshot_id: snapshotId, kind, format, filename, file_base64: base64 }),
       });
     } finally { setBusy(false); }
   }

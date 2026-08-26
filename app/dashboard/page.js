@@ -1,8 +1,13 @@
 import { sql } from '@/lib/db';
 import { getCurrentCompany } from '@/lib/session';
 import { redirect } from 'next/navigation';
-import { sectorOf } from '@/lib/arEngine';
 import UploadForm from './UploadForm';
+import PaymentsEntry from './PaymentsEntry';
+import DashboardExport from './DashboardExport';
+import { buildDashboardAnalysis } from '@/lib/analysis';
+
+const fmt = (n) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2 });
+const pct = (n) => `${(Number(n || 0) * 100).toFixed(1)}%`;
 
 export default async function DashboardPage() {
   const company = await getCurrentCompany();
@@ -19,21 +24,11 @@ export default async function DashboardPage() {
     limit 15
   `;
 
-  let sectorSummary = null;
+  let analysis = null, customers = [];
   if (snapshots.length) {
     const latest = snapshots[0];
-    const invoices = await sql`
-      select customer_name_raw, pgs_raw, open_balance from ar_invoices where snapshot_id = ${latest.id}
-    `;
-    const byCustomerType = await sql`
-      select c.type, i.customer_name_raw, i.open_balance
-      from ar_invoices i left join customers c on c.id = i.customer_id
-      where i.snapshot_id = ${latest.id}
-    `;
-    const totals = { GVT: 0, PVT: 0, SEMI: 0 };
-    for (const r of byCustomerType) totals[sectorOf(r.type || r.pgs_raw)] += Number(r.open_balance);
-    const grand = totals.GVT + totals.PVT + totals.SEMI || 1;
-    sectorSummary = { latest, totals, grand, invoiceCount: invoices.length };
+    analysis = await buildDashboardAnalysis(company.id, latest.id);
+    customers = await sql`select id, name from customers where company_id = ${company.id} order by name`;
   }
 
   return (
@@ -45,18 +40,91 @@ export default async function DashboardPage() {
         <UploadForm />
       </div>
 
-      {sectorSummary && (
-        <div className="card">
-          <h4>Latest snapshot — {sectorSummary.latest.report_date || sectorSummary.latest.uploaded_at?.slice(0,10)}</h4>
-          <table>
-            <thead><tr><th>Sector</th><th style={{ textAlign: 'right' }}>Outstanding</th><th style={{ textAlign: 'right' }}>%</th></tr></thead>
-            <tbody>
-              <tr><td><span className="badge GVT">GVT</span></td><td style={{ textAlign: 'right' }}>{sectorSummary.totals.GVT.toLocaleString(undefined,{minimumFractionDigits:2})}</td><td style={{ textAlign: 'right' }}>{(sectorSummary.totals.GVT/sectorSummary.grand*100).toFixed(1)}%</td></tr>
-              <tr><td><span className="badge PVT">PVT</span></td><td style={{ textAlign: 'right' }}>{sectorSummary.totals.PVT.toLocaleString(undefined,{minimumFractionDigits:2})}</td><td style={{ textAlign: 'right' }}>{(sectorSummary.totals.PVT/sectorSummary.grand*100).toFixed(1)}%</td></tr>
-              <tr><td><span className="badge SEMI">Semi-GVT</span></td><td style={{ textAlign: 'right' }}>{sectorSummary.totals.SEMI.toLocaleString(undefined,{minimumFractionDigits:2})}</td><td style={{ textAlign: 'right' }}>{(sectorSummary.totals.SEMI/sectorSummary.grand*100).toFixed(1)}%</td></tr>
-            </tbody>
-          </table>
-        </div>
+      {analysis && (
+        <>
+          <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h4 style={{ margin: 0 }}>A/R Analysis — GVT vs PVT vs Semi-GVT</h4>
+              <p style={{ margin: '4px 0 0', color: 'var(--ink-500)', fontSize: 13 }}>As of: {snapshots[0].report_date || snapshots[0].uploaded_at?.slice(0, 10)}</p>
+            </div>
+            <DashboardExport companyName={company.name} reportDate={snapshots[0].report_date} analysis={analysis} snapshotId={snapshots[0].id} />
+          </div>
+
+          <div className="card">
+            <h4>Sector Summary</h4>
+            <table>
+              <thead><tr><th>Sector</th><th style={{ textAlign: 'right' }}>Total Outstanding - QB</th><th style={{ textAlign: 'right' }}>%</th><th style={{ textAlign: 'right' }}>Paid &amp; Details Pending</th><th style={{ textAlign: 'right' }}>Net Outstanding</th></tr></thead>
+              <tbody>
+                <tr><td><span className="badge GVT">GVT</span></td><td style={{ textAlign: 'right' }}>{fmt(analysis.sectors.gvt.qb)}</td><td style={{ textAlign: 'right' }}>{pct(analysis.sectors.gvt.pct)}</td><td style={{ textAlign: 'right' }}>{fmt(analysis.sectors.gvt.paid)}</td><td style={{ textAlign: 'right' }}>{fmt(analysis.sectors.gvt.net)}</td></tr>
+                <tr><td><span className="badge PVT">PVT</span></td><td style={{ textAlign: 'right' }}>{fmt(analysis.sectors.pvt.qb)}</td><td style={{ textAlign: 'right' }}>{pct(analysis.sectors.pvt.pct)}</td><td style={{ textAlign: 'right' }}>{fmt(analysis.sectors.pvt.paid)}</td><td style={{ textAlign: 'right' }}>{fmt(analysis.sectors.pvt.net)}</td></tr>
+                <tr><td><span className="badge SEMI">Semi-GVT</span></td><td style={{ textAlign: 'right' }}>{fmt(analysis.sectors.semi.qb)}</td><td style={{ textAlign: 'right' }}>{pct(analysis.sectors.semi.pct)}</td><td style={{ textAlign: 'right' }}>{fmt(analysis.sectors.semi.paid)}</td><td style={{ textAlign: 'right' }}>{fmt(analysis.sectors.semi.net)}</td></tr>
+                <tr className="total-row"><td><strong>Total</strong></td><td style={{ textAlign: 'right' }}><strong>{fmt(analysis.sectors.total.qb)}</strong></td><td></td><td style={{ textAlign: 'right' }}><strong>{fmt(analysis.sectors.total.paid)}</strong></td><td style={{ textAlign: 'right' }}><strong>{fmt(analysis.sectors.total.net)}</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="card">
+            <h4>GVT — Customer-wise MOFT Analysis</h4>
+            <table>
+              <thead><tr><th>#</th><th>Customer</th><th style={{ textAlign: 'right' }}>Not Submitted to MOFT</th><th style={{ textAlign: 'right' }}>%</th><th style={{ textAlign: 'right' }}>Payment Pending from MOFT</th><th style={{ textAlign: 'right' }}>%</th><th style={{ textAlign: 'right' }}>Paid &amp; Pending</th><th style={{ textAlign: 'right' }}>Total Outstanding</th></tr></thead>
+              <tbody>
+                {analysis.gvtCustomers.map((c, i) => (
+                  <tr key={c.name}>
+                    <td>{i + 1}</td><td>{c.name}</td>
+                    <td style={{ textAlign: 'right' }}>{fmt(c.submit)}</td><td style={{ textAlign: 'right' }}>{pct(c.submitPct)}</td>
+                    <td style={{ textAlign: 'right' }}>{fmt(c.pay)}</td><td style={{ textAlign: 'right' }}>{pct(c.payPct)}</td>
+                    <td style={{ textAlign: 'right' }}>{fmt(c.paid)}</td><td style={{ textAlign: 'right' }}>{fmt(c.gross)}</td>
+                  </tr>
+                ))}
+                <tr className="total-row"><td></td><td><strong>Total</strong></td>
+                  <td style={{ textAlign: 'right' }}><strong>{fmt(analysis.gvtCustomers.reduce((s, x) => s + x.submit, 0))}</strong></td><td></td>
+                  <td style={{ textAlign: 'right' }}><strong>{fmt(analysis.gvtCustomers.reduce((s, x) => s + x.pay, 0))}</strong></td><td></td>
+                  <td style={{ textAlign: 'right' }}><strong>{fmt(analysis.gvtCustomers.reduce((s, x) => s + x.paid, 0))}</strong></td>
+                  <td style={{ textAlign: 'right' }}><strong>{fmt(analysis.gvtCustomers.reduce((s, x) => s + x.gross, 0))}</strong></td>
+                </tr>
+                {!analysis.gvtCustomers.length && <tr><td colSpan={8}>No GVT customers in this report.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="card">
+            <h4>PVT — Customer-wise Analysis</h4>
+            <table>
+              <thead><tr><th>#</th><th>Customer</th><th style={{ textAlign: 'right' }}>Outstanding - QB</th><th style={{ textAlign: 'right' }}>Paid &amp; Pending</th><th style={{ textAlign: 'right' }}>Net Outstanding</th></tr></thead>
+              <tbody>
+                {analysis.pvtCustomers.map((c, i) => (
+                  <tr key={c.name}><td>{i + 1}</td><td>{c.name}</td><td style={{ textAlign: 'right' }}>{fmt(c.qb)}</td><td style={{ textAlign: 'right' }}>{fmt(c.paid)}</td><td style={{ textAlign: 'right' }}>{fmt(c.net)}</td></tr>
+                ))}
+                <tr className="total-row"><td></td><td><strong>Total</strong></td>
+                  <td style={{ textAlign: 'right' }}><strong>{fmt(analysis.pvtCustomers.reduce((s, x) => s + x.qb, 0))}</strong></td>
+                  <td style={{ textAlign: 'right' }}><strong>{fmt(analysis.pvtCustomers.reduce((s, x) => s + x.paid, 0))}</strong></td>
+                  <td style={{ textAlign: 'right' }}><strong>{fmt(analysis.pvtCustomers.reduce((s, x) => s + x.net, 0))}</strong></td>
+                </tr>
+                {!analysis.pvtCustomers.length && <tr><td colSpan={5}>No PVT customers in this report.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="card">
+            <h4>Semi-GVT — Customer-wise Analysis</h4>
+            <table>
+              <thead><tr><th>#</th><th>Customer</th><th style={{ textAlign: 'right' }}>Outstanding - QB</th><th style={{ textAlign: 'right' }}>Paid &amp; Pending</th><th style={{ textAlign: 'right' }}>Net Outstanding</th></tr></thead>
+              <tbody>
+                {analysis.semiCustomers.map((c, i) => (
+                  <tr key={c.name}><td>{i + 1}</td><td>{c.name}</td><td style={{ textAlign: 'right' }}>{fmt(c.qb)}</td><td style={{ textAlign: 'right' }}>{fmt(c.paid)}</td><td style={{ textAlign: 'right' }}>{fmt(c.net)}</td></tr>
+                ))}
+                <tr className="total-row"><td></td><td><strong>Total</strong></td>
+                  <td style={{ textAlign: 'right' }}><strong>{fmt(analysis.semiCustomers.reduce((s, x) => s + x.qb, 0))}</strong></td>
+                  <td style={{ textAlign: 'right' }}><strong>{fmt(analysis.semiCustomers.reduce((s, x) => s + x.paid, 0))}</strong></td>
+                  <td style={{ textAlign: 'right' }}><strong>{fmt(analysis.semiCustomers.reduce((s, x) => s + x.net, 0))}</strong></td>
+                </tr>
+                {!analysis.semiCustomers.length && <tr><td colSpan={5}>No Semi-GVT customers in this report.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+
+          <PaymentsEntry snapshotId={snapshots[0].id} customers={customers} />
+        </>
       )}
 
       <div className="card">
@@ -70,7 +138,7 @@ export default async function DashboardPage() {
                 <td>{s.report_date || '—'}</td>
                 <td>{s.source_filename}</td>
                 <td>{s.invoice_count}</td>
-                <td style={{ textAlign: 'right' }}>{Number(s.total_open).toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+                <td style={{ textAlign: 'right' }}>{fmt(s.total_open)}</td>
                 <td>{s.uploaded_by_name || '—'}</td>
               </tr>
             ))}

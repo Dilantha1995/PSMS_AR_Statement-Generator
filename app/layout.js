@@ -21,6 +21,7 @@ export default async function RootLayout({ children }) {
                   <Link href="/dashboard">Dashboard</Link>
                   <Link href="/customers">Customers</Link>
                   <Link href="/soa">SOA Generator</Link>
+                  <Link href="/documents">Documents</Link>
                   <Link href="/followups/report">Follow-up Report</Link>
                   {user.role === 'admin' && <Link href="/admin/users">Users</Link>}
                   <Link href="/select-company">Switch company</Link>
