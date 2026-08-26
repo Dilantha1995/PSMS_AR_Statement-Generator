@@ -89,7 +89,7 @@ export default async function AdminUsersPage({ searchParams }) {
       </div>
 
       <div className="table-scroll"><table>
-        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Companies</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Companies</th><th>Password last changed</th><th></th></tr></thead>
         <tbody>
           {users.map((u) => (
             <tr key={u.id}>
@@ -97,6 +97,7 @@ export default async function AdminUsersPage({ searchParams }) {
               <td>{u.email}</td>
               <td>{u.role}</td>
               <td>{u.company_codes?.join(', ') || '—'}</td>
+              <td>{u.password_changed_at ? new Date(u.password_changed_at).toLocaleString() : <span style={{ color: 'var(--amber)' }}>Never (still on temp password)</span>}</td>
               <td>
                 <form action={resetPassword}>
                   <input type="hidden" name="appUserId" value={u.id} />

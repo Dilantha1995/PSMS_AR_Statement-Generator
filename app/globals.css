@@ -17,6 +17,9 @@ a { color: var(--green-700); text-decoration: none; }
 .brand { font-weight: 800; color: var(--green-900); font-size: 16px; white-space: nowrap; }
 .topnav-name { font-size: 13px; color: var(--ink-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
 .company-pill { background: var(--green-100); color: var(--green-700); padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.change-pw-desktop { font-size: 13px; color: var(--ink-500); white-space: nowrap; }
+.change-pw-desktop:hover { color: var(--green-700); }
+.account-link-mobile { display: none; }
 
 .hamburger { display: none; flex-direction: column; justify-content: center; gap: 4px; width: 34px; height: 34px; background: transparent; border: 1px solid var(--ink-100); border-radius: 8px; padding: 0; }
 .hamburger span { display: block; width: 16px; height: 2px; background: var(--ink-900); margin: 0 auto; border-radius: 2px; }
@@ -58,6 +61,8 @@ button.secondary { background: var(--surface); color: var(--green-700); border: 
   h2 { font-size: 18px; }
   .hamburger { display: flex; }
   .topnav-name { display: none; }
+  .change-pw-desktop { display: none; }
+  .account-link-mobile { display: block; }
   .topnav-links { display: none; flex-direction: column; gap: 2px; }
   .topnav-links.open { display: flex; }
   .topnav-links a { padding: 10px 12px; }
