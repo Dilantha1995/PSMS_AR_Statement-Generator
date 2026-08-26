@@ -66,7 +66,7 @@ export default async function CustomerDetailPage({ params }) {
         where f.customer_id=${params.id} order by f.followup_date desc, f.created_at desc limit 30`,
     sql`select coalesce(sum(open_balance),0) as bal from ar_invoices i
         where i.customer_id=${params.id}
-          and i.snapshot_id=(select id from ar_snapshots s where s.company_id=${company.id} order by s.uploaded_at desc limit 1)`,
+          and i.snapshot_id=(select id from ar_snapshots s where s.company_id=${company.id} order by s.report_date_parsed desc nulls last, s.uploaded_at desc limit 1)`,
   ]);
 
   return (

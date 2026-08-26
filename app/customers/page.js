@@ -24,7 +24,7 @@ export default async function CustomersPage({ searchParams }) {
     select c.*,
       coalesce((select sum(open_balance) from ar_invoices i
         where i.customer_id = c.id
-          and i.snapshot_id = (select id from ar_snapshots s where s.company_id = c.company_id order by s.uploaded_at desc limit 1)
+          and i.snapshot_id = (select id from ar_snapshots s where s.company_id = c.company_id order by s.report_date_parsed desc nulls last, s.uploaded_at desc limit 1)
       ), 0) as latest_open_balance
     from customers c
     where c.company_id = ${company.id}

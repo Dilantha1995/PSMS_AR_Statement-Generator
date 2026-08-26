@@ -8,7 +8,7 @@ export default async function SoaPage() {
   const company = await getCurrentCompany();
   if (!company) redirect('/select-company');
 
-  const [snapshot] = await sql`select * from ar_snapshots where company_id=${company.id} order by uploaded_at desc limit 1`;
+  const [snapshot] = await sql`select * from ar_snapshots where company_id=${company.id} order by report_date_parsed desc nulls last, uploaded_at desc limit 1`;
   if (!snapshot) {
     return <div><h2>SOA Generator</h2><p>No A/R report uploaded yet for {company.name}. Upload one from the Dashboard first.</p></div>;
   }

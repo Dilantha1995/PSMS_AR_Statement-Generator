@@ -13,7 +13,7 @@ export async function GET() {
     from ar_snapshots s
     left join app_users u on u.id = s.uploaded_by
     where s.company_id = ${company.id}
-    order by s.uploaded_at desc
+    order by s.report_date_parsed desc nulls last, s.uploaded_at desc
   `;
   return Response.json(rows);
 }
@@ -24,6 +24,7 @@ export async function POST(req) {
 
   const form = await req.formData();
   const file = form.get('file');
+  const force = form.get('force') === 'true';
   if (!file) return new Response('file is required', { status: 400 });
 
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -34,9 +35,27 @@ export async function POST(req) {
     return new Response(`Could not parse file: ${e.message}`, { status: 422 });
   }
 
+  // Refuse to save a report that's older than (or the same date as) the
+  // newest one already on file for this company — the dashboard, customer
+  // balances, and SOA generator all key off the latest snapshot, so an
+  // accidental re-upload of a stale file would silently roll the numbers back.
+  if (parsed.reportDateISO && !force) {
+    const [latest] = await sql`
+      select report_date, report_date_parsed from ar_snapshots
+      where company_id = ${company.id} and report_date_parsed is not null
+      order by report_date_parsed desc limit 1
+    `;
+    if (latest && parsed.reportDateISO <= latest.report_date_parsed) {
+      return Response.json({
+        rejected: true,
+        reason: `This file is dated ${parsed.reportDate} (${parsed.reportDateISO}), which is not newer than the latest report already on file for ${company.name}, dated ${latest.report_date} (${latest.report_date_parsed}). It was not saved so it can't overwrite the current balances. If you really need to add it anyway (e.g. backfilling history), re-upload with "force" checked.`,
+      }, { status: 409 });
+    }
+  }
+
   const [snapshot] = await sql`
-    insert into ar_snapshots (company_id, report_date, source_filename, uploaded_by, raw_diagnostics)
-    values (${company.id}, ${parsed.reportDate}, ${file.name}, ${user.id}, ${JSON.stringify(parsed.diagnostics)})
+    insert into ar_snapshots (company_id, report_date, report_date_parsed, source_filename, uploaded_by, raw_diagnostics)
+    values (${company.id}, ${parsed.reportDate}, ${parsed.reportDateISO}, ${file.name}, ${user.id}, ${JSON.stringify(parsed.diagnostics)})
     returning *
   `;
 

@@ -2,6 +2,7 @@ import { sql } from '@/lib/db';
 import { getCurrentCompany } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import { sectorOf } from '@/lib/arEngine';
+import UploadForm from './UploadForm';
 
 export default async function DashboardPage() {
   const company = await getCurrentCompany();
@@ -14,7 +15,7 @@ export default async function DashboardPage() {
     from ar_snapshots s
     left join app_users u on u.id = s.uploaded_by
     where s.company_id = ${company.id}
-    order by s.uploaded_at desc
+    order by s.report_date_parsed desc nulls last, s.uploaded_at desc
     limit 15
   `;
 
@@ -41,11 +42,7 @@ export default async function DashboardPage() {
 
       <div className="card">
         <h4>Upload a new A/R Ageing Detail Report</h4>
-        <form action="/api/snapshots" method="post" encType="multipart/form-data" style={{ display: 'flex', gap: 8 }}>
-          <input type="file" name="file" accept=".xlsx,.xls" required />
-          <button type="submit">Upload &amp; Parse</button>
-        </form>
-        <p style={{ fontSize: 12, color: 'var(--ink-500)' }}>Every upload is kept as history below — nothing is overwritten.</p>
+        <UploadForm />
       </div>
 
       {sectorSummary && (
