@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { fmtDate } from '@/lib/format';
 
 export default function PaymentsEntry({ snapshotId, customers }) {
   const [payments, setPayments] = useState([]);
@@ -61,7 +62,7 @@ export default function PaymentsEntry({ snapshotId, customers }) {
           <tbody>
             {payments.map((p) => (
               <tr key={p.id}>
-                <td>{p.pay_date}</td>
+                <td>{fmtDate(p.pay_date)}</td>
                 <td>{p.customer_name}</td>
                 <td>{p.reference || '—'}</td>
                 <td style={{ textAlign: 'right' }}>{Number(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>

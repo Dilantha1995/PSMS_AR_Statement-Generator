@@ -1,6 +1,7 @@
 import { sql } from '@/lib/db';
 import { getCurrentCompany } from '@/lib/session';
 import { redirect } from 'next/navigation';
+import { fmtDate } from '@/lib/format';
 
 export default async function FollowupReportPage({ searchParams }) {
   const company = await getCurrentCompany();
@@ -50,12 +51,12 @@ export default async function FollowupReportPage({ searchParams }) {
         <tbody>
           {rows.map((r) => (
             <tr key={r.id}>
-              <td>{r.followup_date}</td>
+              <td>{fmtDate(r.followup_date)}</td>
               <td>{r.customer_name} <span className={`badge ${r.customer_type}`}>{r.customer_type}</span></td>
-              <td>{r.outcome}{r.promised_date ? ` (${r.promised_date})` : ''}</td>
+              <td>{r.outcome}{r.promised_date ? ` (${fmtDate(r.promised_date)})` : ''}</td>
               <td>{r.note}</td>
               <td style={{ textAlign: 'right' }}>{r.amount_discussed ? Number(r.amount_discussed).toLocaleString(undefined, { minimumFractionDigits: 2 }) : ''}</td>
-              <td>{r.next_action_date || '—'}</td>
+              <td>{r.next_action_date ? fmtDate(r.next_action_date) : '—'}</td>
               <td>{r.logged_by_name || '—'}</td>
             </tr>
           ))}

@@ -2,6 +2,7 @@ import { sql } from '@/lib/db';
 import { getCurrentCompany, getCurrentUser } from '@/lib/session';
 import { redirect, notFound } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { fmtDate } from '@/lib/format';
 
 const OUTCOMES = [
   ['promised_date', 'Promised a date'],
@@ -135,10 +136,10 @@ export default async function CustomerDetailPage({ params }) {
           <tbody>
             {followups.map((f) => (
               <tr key={f.id}>
-                <td>{f.followup_date}</td>
-                <td>{OUTCOMES.find(([v]) => v === f.outcome)?.[1] || f.outcome}{f.promised_date ? ` (${f.promised_date})` : ''}</td>
+                <td>{fmtDate(f.followup_date)}</td>
+                <td>{OUTCOMES.find(([v]) => v === f.outcome)?.[1] || f.outcome}{f.promised_date ? ` (${fmtDate(f.promised_date)})` : ''}</td>
                 <td>{f.note}</td>
-                <td>{f.next_action_date || '—'}</td>
+                <td>{f.next_action_date ? fmtDate(f.next_action_date) : '—'}</td>
                 <td>{f.logged_by_name || '—'}</td>
               </tr>
             ))}
