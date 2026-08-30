@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import UploadForm from './UploadForm';
 import PaymentsEntry from './PaymentsEntry';
 import DashboardExport from './DashboardExport';
+import SectorPieChart from './SectorPieChart';
 import { buildDashboardAnalysis } from '@/lib/analysis';
 
 const fmt = (n) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2 });
@@ -62,6 +63,8 @@ export default async function DashboardPage() {
               </tbody>
             </table></div>
           </div>
+
+          <SectorPieChart sectors={analysis.sectors} />
 
           <div className="card">
             <h4>GVT — Customer-wise MOFT Analysis</h4>
