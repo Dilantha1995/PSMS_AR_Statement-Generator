@@ -3,6 +3,7 @@ import { getCurrentCompany } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import { sectorOf } from '@/lib/arEngine';
 import GenerateButtons from './GenerateButtons';
+import BulkDownload from './BulkDownload';
 
 export default async function SoaPage() {
   const company = await getCurrentCompany();
@@ -27,7 +28,10 @@ export default async function SoaPage() {
   return (
     <div>
       <h2>SOA Generator — {company.name}</h2>
-      <p style={{ color: 'var(--ink-500)' }}>Snapshot: {snapshot.report_date || snapshot.uploaded_at?.slice(0,10)} · {customers.length} customers</p>
+      <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+        <p style={{ color: 'var(--ink-500)', margin: 0 }}>Snapshot: {snapshot.report_date || snapshot.uploaded_at?.slice(0,10)} · {customers.length} customers</p>
+        <BulkDownload snapshotId={snapshot.id} companyName={company.name} reportDate={snapshot.report_date} />
+      </div>
       <div className="table-scroll"><table>
         <thead><tr><th>Customer</th><th>Type</th><th style={{ textAlign: 'right' }}>Open Balance</th><th>Statements</th></tr></thead>
         <tbody>
