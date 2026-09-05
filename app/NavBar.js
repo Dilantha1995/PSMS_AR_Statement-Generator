@@ -11,6 +11,7 @@ export default function NavBar({ fullName, companyCode, isAdmin, hasCompany }) {
     ['/dashboard', 'Dashboard'],
     ['/customers', 'Customers'],
     ['/soa', 'SOA Generator'],
+    ['/reports', 'Reports'],
     ['/documents', 'Documents'],
     ['/followups/report', 'Follow-up Report'],
     ...(isAdmin ? [['/admin/users', 'Users']] : []),
