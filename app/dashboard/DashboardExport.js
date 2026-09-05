@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { buildDashboardPdf, buildDashboardXlsx } from '@/lib/dashboardBuilders';
+import { buildManagementSummaryPdf } from '@/lib/managementSummaryPdf';
 
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
@@ -13,11 +14,13 @@ function blobToBase64(blob) {
 
 export default function DashboardExport({ companyName, reportDate, analysis, snapshotId }) {
   const [busy, setBusy] = useState(false);
+  const [masterBusy, setMasterBusy] = useState(false);
+  const [summaryBusy, setSummaryBusy] = useState(false);
 
-  async function saveDocument(filename, format, base64) {
+  async function saveDocument(filename, format, base64, kind = 'dashboard') {
     await fetch('/api/documents', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kind: 'dashboard', format, filename, file_base64: base64, snapshot_id: snapshotId }),
+      body: JSON.stringify({ kind, format, filename, file_base64: base64, snapshot_id: snapshotId }),
     });
   }
 
@@ -42,10 +45,45 @@ export default function DashboardExport({ companyName, reportDate, analysis, sna
     } finally { setBusy(false); }
   }
 
+  async function exportMasterAnalysis() {
+    setMasterBusy(true);
+    try {
+      const res = await fetch(`/api/snapshots/${snapshotId}/master-analysis`);
+      if (!res.ok) throw new Error('Failed to generate Master Analysis workbook.');
+      const blob = await res.blob();
+      const cd = res.headers.get('Content-Disposition') || '';
+      const match = cd.match(/filename="([^"]+)"/);
+      const filename = match ? match[1] : 'AR_Analysis.xlsx';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+      const base64 = await blobToBase64(blob);
+      await saveDocument(filename, 'xlsx', base64);
+    } catch (e) {
+      alert(e.message);
+    } finally { setMasterBusy(false); }
+  }
+
+  async function exportManagementSummary() {
+    setSummaryBusy(true);
+    try {
+      const res = await fetch(`/api/snapshots/${snapshotId}/management-summary`);
+      if (!res.ok) throw new Error('Failed to generate Management Summary Report.');
+      const data = await res.json();
+      const { doc, filename } = buildManagementSummaryPdf(data);
+      doc.save(`${filename}.pdf`);
+      const base64 = doc.output('datauristring').split(',')[1];
+      await saveDocument(`${filename}.pdf`, 'pdf', base64, 'management_summary');
+    } catch (e) {
+      alert(e.message);
+    } finally { setSummaryBusy(false); }
+  }
+
   return (
-    <div style={{ display: 'flex', gap: 8 }}>
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
       <button disabled={busy} onClick={exportPdf}>Download Dashboard PDF</button>
       <button disabled={busy} className="secondary" onClick={exportXlsx}>Download Dashboard Excel</button>
+      <button disabled={masterBusy} className="secondary" onClick={exportMasterAnalysis}>{masterBusy ? 'Building…' : 'Download Master Analysis Excel'}</button>
+      <button disabled={summaryBusy} className="secondary" onClick={exportManagementSummary}>{summaryBusy ? 'Generating…' : 'Regenerate Management Summary'}</button>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import JSZip from 'jszip';
 import { buildCustomerPdf, buildCustomerXlsx } from '@/lib/statementBuilders';
+import { buildDashboardPdf, buildDashboardXlsx } from '@/lib/dashboardBuilders';
 
 const SECTOR_FOLDER = { GVT: 'GVT', PVT: 'PVT', SEMI: 'Semi Pvt' };
 const KINDS_BY_SECTOR = { GVT: ['pending_moft', 'pending_payment', 'combined'], PVT: ['soa'], SEMI: ['soa'] };
@@ -12,14 +13,39 @@ export default function BulkDownload({ snapshotId, companyName, reportDate }) {
 
   async function downloadAll() {
     setBusy(true);
-    setProgress('Fetching customer data…');
     try {
-      const res = await fetch(`/api/snapshots/${snapshotId}/bulk`);
-      if (!res.ok) throw new Error('Could not load snapshot data.');
-      const { customers } = await res.json();
+      setProgress('Fetching customer data…');
+      const [bulkRes, analysisRes, masterRes] = await Promise.all([
+        fetch(`/api/snapshots/${snapshotId}/bulk`),
+        fetch(`/api/snapshots/${snapshotId}/analysis`),
+        fetch(`/api/snapshots/${snapshotId}/master-analysis`),
+      ]);
+      if (!bulkRes.ok) throw new Error('Could not load snapshot data.');
+      const { customers } = await bulkRes.json();
 
       const zip = new JSZip();
       let fileCount = 0;
+
+      // Root-level files: Dashboard PDF/Excel + Master Analysis workbook — matching the
+      // original tool's Total Output pack (root files + GVT/PVT/Semi Pvt subfolders).
+      if (analysisRes.ok) {
+        setProgress('Building dashboard report…');
+        const { analysis } = await analysisRes.json();
+        const { doc, filename: pdfName } = buildDashboardPdf({ companyName, reportDate, analysis });
+        zip.file(`${pdfName}.pdf`, doc.output('blob'));
+        fileCount++;
+        const { blob, filename: xlsxName } = buildDashboardXlsx({ companyName, reportDate, analysis });
+        zip.file(`${xlsxName}.xlsx`, blob);
+        fileCount++;
+      }
+      if (masterRes.ok) {
+        setProgress('Adding Master Analysis workbook…');
+        const masterBlob = await masterRes.blob();
+        const cd = masterRes.headers.get('Content-Disposition') || '';
+        const match = cd.match(/filename="([^"]+)"/);
+        zip.file(match ? match[1] : 'AR_Analysis.xlsx', masterBlob);
+        fileCount++;
+      }
 
       customers.forEach((customer, i) => {
         setProgress(`Building statements… ${i + 1}/${customers.length}`);

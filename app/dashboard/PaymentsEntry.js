@@ -9,14 +9,14 @@ export default function PaymentsEntry({ snapshotId, customers }) {
   const router = useRouter();
 
   useEffect(() => {
-    fetch(`/api/payments?snapshot_id=${snapshotId}`).then((r) => r.json()).then((d) => { setPayments(d); setLoading(false); });
-  }, [snapshotId]);
+    fetch('/api/payments').then((r) => r.json()).then((d) => { setPayments(d); setLoading(false); });
+  }, []);
 
   async function addPayment(e) {
     e.preventDefault();
     const form = e.target;
     const body = {
-      snapshot_id: snapshotId,
+      snapshot_id: snapshotId, // kept only as provenance, not used to filter
       customer_id: form.customer_id.value,
       amount: form.amount.value,
       pay_date: form.pay_date.value,
@@ -25,7 +25,7 @@ export default function PaymentsEntry({ snapshotId, customers }) {
     const res = await fetch('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (res.ok) {
       form.reset();
-      const updated = await fetch(`/api/payments?snapshot_id=${snapshotId}`).then((r) => r.json());
+      const updated = await fetch('/api/payments').then((r) => r.json());
       setPayments(updated);
       router.refresh();
     }
@@ -41,8 +41,11 @@ export default function PaymentsEntry({ snapshotId, customers }) {
 
   return (
     <div className="card">
-      <h4>Payments &amp; Details Pending — this report</h4>
-      <p style={{ fontSize: 12, color: 'var(--ink-500)' }}>Amounts entered here reduce the "Total Outstanding" figures into "Net Outstanding" on the dashboard and exports, matching the standalone tool's behavior.</p>
+      <h4>Payments &amp; Details Pending</h4>
+      <p style={{ fontSize: 12, color: 'var(--ink-500)' }}>
+        This list carries forward automatically to every new report you upload — it only changes when you remove a settled payment
+        or add a new one. Amounts here reduce "Total Outstanding" into "Net Outstanding" on the dashboard and exports.
+      </p>
       <form onSubmit={addPayment} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <label>Customer<br />
           <select name="customer_id" required>

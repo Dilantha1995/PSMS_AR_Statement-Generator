@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 
 const KIND_LABELS = {
   dashboard: 'Dashboard Report', pending_moft: 'Pending Submit to MOFT', pending_payment: 'Pending Payment from MOFT',
-  combined: 'Combined SOA', soa: 'SOA',
+  combined: 'Combined SOA', soa: 'SOA', management_summary: 'Management Summary Report',
 };
 
 export default async function DocumentsPage() {
