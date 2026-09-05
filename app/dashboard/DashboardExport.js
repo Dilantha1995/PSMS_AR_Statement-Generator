@@ -69,7 +69,7 @@ export default function DashboardExport({ companyName, reportDate, analysis, sna
       const res = await fetch(`/api/snapshots/${snapshotId}/management-summary`);
       if (!res.ok) throw new Error('Failed to generate Management Summary Report.');
       const data = await res.json();
-      const { doc, filename } = buildManagementSummaryPdf(data);
+      const { doc, filename } = await buildManagementSummaryPdf(data);
       doc.save(`${filename}.pdf`);
       const base64 = doc.output('datauristring').split(',')[1];
       await saveDocument(`${filename}.pdf`, 'pdf', base64, 'management_summary');

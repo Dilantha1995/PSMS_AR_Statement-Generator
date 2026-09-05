@@ -15,6 +15,7 @@ export default function NavBar({ fullName, companyCode, isAdmin, hasCompany }) {
     ['/documents', 'Documents'],
     ['/followups/report', 'Follow-up Report'],
     ...(isAdmin ? [['/admin/users', 'Users']] : []),
+    ...(isAdmin ? [['/configure', 'Configure']] : []),
     ['/select-company', 'Switch company'],
   ] : [];
   const accountLinks = [['/account/change-password', 'Change Password']];

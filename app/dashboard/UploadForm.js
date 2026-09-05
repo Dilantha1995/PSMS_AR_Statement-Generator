@@ -28,7 +28,7 @@ export default function UploadForm() {
       const res = await fetch(`/api/snapshots/${snapshotId}/management-summary`);
       if (!res.ok) throw new Error('Could not build summary data.');
       const data = await res.json();
-      const { doc, filename } = buildManagementSummaryPdf(data);
+      const { doc, filename } = await buildManagementSummaryPdf(data);
       const base64 = doc.output('datauristring').split(',')[1];
       await fetch('/api/documents', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
