@@ -11,13 +11,14 @@
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
     "better-auth": "^1.2.7",
-    "next": "^14.2.15",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "xlsx": "^0.18.5",
+    "exceljs": "^4.4.0",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.8.2",
     "jszip": "^3.10.1",
-    "exceljs": "^4.4.0"
+    "next": "^14.2.15",
+    "pdfjs-dist": "^6.3.289",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "xlsx": "^0.18.5"
   }
 }

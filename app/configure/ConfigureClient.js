@@ -10,6 +10,34 @@ function fileToBase64(file) {
   });
 }
 
+/** Renders page 1 of a PDF to a PNG (base64), so a letterhead can be uploaded as a PDF directly. */
+async function pdfFirstPageToPngBase64(file) {
+  const pdfjsLib = await import('pdfjs-dist');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const page = await pdf.getPage(1);
+  const scale = 2.5; // render at higher resolution than the page's native size for a crisp result
+  const viewport = page.getViewport({ scale });
+
+  const canvas = document.createElement('canvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: ctx, viewport }).promise;
+
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result.split(',')[1]);
+      reader.readAsDataURL(blob);
+    }, 'image/png');
+  });
+}
+
 export default function ConfigurePage() {
   const [branding, setBranding] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -28,16 +56,31 @@ export default function ConfigurePage() {
 
   async function uploadImage(kind, file) {
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setStatus({ kind: 'error', text: `That's a ${file.type || 'non-image'} file. Please upload a PNG or JPG image — if your letterhead is a PDF or Word document, take a screenshot or export it as an image first.` });
+    if (file.size > 8 * 1024 * 1024) { setStatus({ kind: 'error', text: 'Please use a file under 8MB.' }); return; }
+
+    let base64, mime;
+    if (file.type === 'application/pdf') {
+      if (kind === 'logo') { setStatus({ kind: 'error', text: 'Logo must be a PNG or JPG image, not a PDF.' }); return; }
+      setStatus({ kind: 'info', text: 'Converting PDF letterhead to an image (using page 1)…' });
+      try {
+        base64 = await pdfFirstPageToPngBase64(file);
+        mime = 'image/png';
+      } catch (e) {
+        setStatus({ kind: 'error', text: `Could not read that PDF: ${e.message}` });
+        return;
+      }
+    } else if (file.type.startsWith('image/')) {
+      base64 = await fileToBase64(file);
+      mime = file.type;
+    } else {
+      setStatus({ kind: 'error', text: `That's a ${file.type || 'unrecognized'} file. Please upload a PNG, JPG, or PDF.` });
       return;
     }
-    if (file.size > 2 * 1024 * 1024) { setStatus({ kind: 'error', text: 'Please use an image under 2MB.' }); return; }
+
     setStatus({ kind: 'info', text: `Uploading ${kind}…` });
-    const base64 = await fileToBase64(file);
     const body = kind === 'logo'
-      ? { logo_base64: base64, logo_mime: file.type }
-      : { letterhead_base64: base64, letterhead_mime: file.type };
+      ? { logo_base64: base64, logo_mime: mime }
+      : { letterhead_base64: base64, letterhead_mime: mime };
     const res = await fetch('/api/company/branding', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (res.ok) {
       const updated = await fetch('/api/company/branding').then((r) => r.json());
@@ -67,7 +110,7 @@ export default function ConfigurePage() {
 
       <div className="card">
         <h4>Company Logo</h4>
-        <p style={{ fontSize: 13, color: 'var(--ink-500)' }}>Used as a small mark on reports. PNG or JPG, ideally square, under 2MB.</p>
+        <p style={{ fontSize: 13, color: 'var(--ink-500)' }}>Used as a small mark on reports. PNG or JPG, ideally square, under 8MB.</p>
         {branding.logo_base64 && (
           <img src={`data:${branding.logo_mime};base64,${branding.logo_base64}`} alt="Company logo" style={{ maxHeight: 80, marginBottom: 10, display: 'block' }} />
         )}
@@ -77,13 +120,13 @@ export default function ConfigurePage() {
       <div className="card">
         <h4>Company Letterhead</h4>
         <p style={{ fontSize: 13, color: 'var(--ink-500)' }}>
-          A full-width header image (your official letterhead top banner) used on the Management Summary Report.
-          PNG or JPG, landscape orientation, under 2MB.
+          Your official letterhead, used at the top of the Management Summary Report. Upload it as a <strong>PDF</strong> (page 1
+          is converted to an image automatically) or as a PNG/JPG image directly. Landscape orientation works best, under 8MB.
         </p>
         {branding.letterhead_base64 && (
           <img src={`data:${branding.letterhead_mime};base64,${branding.letterhead_base64}`} alt="Company letterhead" style={{ maxWidth: '100%', maxHeight: 160, marginBottom: 10, display: 'block', border: '1px solid var(--ink-100)' }} />
         )}
-        <input ref={letterheadRef} type="file" accept="image/png,image/jpeg" onChange={(e) => uploadImage('letterhead', e.target.files[0])} />
+        <input ref={letterheadRef} type="file" accept="image/png,image/jpeg,application/pdf" onChange={(e) => uploadImage('letterhead', e.target.files[0])} />
       </div>
 
       <div className="card">
