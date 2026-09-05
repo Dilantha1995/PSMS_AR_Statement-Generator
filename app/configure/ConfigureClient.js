@@ -28,6 +28,10 @@ export default function ConfigurePage() {
 
   async function uploadImage(kind, file) {
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setStatus({ kind: 'error', text: `That's a ${file.type || 'non-image'} file. Please upload a PNG or JPG image — if your letterhead is a PDF or Word document, take a screenshot or export it as an image first.` });
+      return;
+    }
     if (file.size > 2 * 1024 * 1024) { setStatus({ kind: 'error', text: 'Please use an image under 2MB.' }); return; }
     setStatus({ kind: 'info', text: `Uploading ${kind}…` });
     const base64 = await fileToBase64(file);

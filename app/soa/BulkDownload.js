@@ -3,6 +3,7 @@ import { useState } from 'react';
 import JSZip from 'jszip';
 import { buildCustomerPdf, buildCustomerXlsx } from '@/lib/statementBuilders';
 import { buildDashboardPdf, buildDashboardXlsx } from '@/lib/dashboardBuilders';
+import { buildManagementSummaryPdf } from '@/lib/managementSummaryPdf';
 
 const SECTOR_FOLDER = { GVT: 'GVT', PVT: 'PVT', SEMI: 'Semi Pvt' };
 const KINDS_BY_SECTOR = { GVT: ['pending_moft', 'pending_payment', 'combined'], PVT: ['soa'], SEMI: ['soa'] };
@@ -15,10 +16,11 @@ export default function BulkDownload({ snapshotId, companyName, reportDate }) {
     setBusy(true);
     try {
       setProgress('Fetching customer data…');
-      const [bulkRes, analysisRes, masterRes] = await Promise.all([
+      const [bulkRes, analysisRes, masterRes, summaryRes] = await Promise.all([
         fetch(`/api/snapshots/${snapshotId}/bulk`),
         fetch(`/api/snapshots/${snapshotId}/analysis`),
         fetch(`/api/snapshots/${snapshotId}/master-analysis`),
+        fetch(`/api/snapshots/${snapshotId}/management-summary`),
       ]);
       if (!bulkRes.ok) throw new Error('Could not load snapshot data.');
       const { customers } = await bulkRes.json();
@@ -26,8 +28,8 @@ export default function BulkDownload({ snapshotId, companyName, reportDate }) {
       const zip = new JSZip();
       let fileCount = 0;
 
-      // Root-level files: Dashboard PDF/Excel + Master Analysis workbook — matching the
-      // original tool's Total Output pack (root files + GVT/PVT/Semi Pvt subfolders).
+      // Root-level files: Dashboard PDF/Excel + Master Analysis workbook + Management
+      // Summary — matching the original tool's Total Output pack (root files + GVT/PVT/Semi Pvt subfolders).
       if (analysisRes.ok) {
         setProgress('Building dashboard report…');
         const { analysis } = await analysisRes.json();
@@ -45,6 +47,17 @@ export default function BulkDownload({ snapshotId, companyName, reportDate }) {
         const match = cd.match(/filename="([^"]+)"/);
         zip.file(match ? match[1] : 'AR_Analysis.xlsx', masterBlob);
         fileCount++;
+      }
+      if (summaryRes.ok) {
+        try {
+          setProgress('Building management summary report…');
+          const summaryData = await summaryRes.json();
+          const { doc, filename } = await buildManagementSummaryPdf(summaryData);
+          zip.file(`${filename}.pdf`, doc.output('blob'));
+          fileCount++;
+        } catch (e) {
+          console.warn('Management Summary Report could not be added to the pack:', e.message);
+        }
       }
 
       customers.forEach((customer, i) => {

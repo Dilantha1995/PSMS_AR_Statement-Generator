@@ -22,6 +22,9 @@ export async function POST(req) {
   if (!company) return new Response('No company selected', { status: 400 });
 
   const b = await req.json();
+  if (b.logo_mime && !b.logo_mime.startsWith('image/')) return new Response('Logo must be an image file (PNG/JPG).', { status: 400 });
+  if (b.letterhead_mime && !b.letterhead_mime.startsWith('image/')) return new Response('Letterhead must be an image file (PNG/JPG), not a PDF or document.', { status: 400 });
+
   const [current] = await sql`select logo_base64, logo_mime, letterhead_base64, letterhead_mime, report_prefix from companies where id = ${company.id}`;
 
   const merged = {
