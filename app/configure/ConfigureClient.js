@@ -10,7 +10,10 @@ function fileToBase64(file) {
   });
 }
 
-/** Renders page 1 of a PDF to a PNG (base64), so a letterhead can be uploaded as a PDF directly. */
+/** Renders page 1 of a PDF to a PNG (base64), auto-cropped to just the header content
+ * region (logo/title block), trimming the blank body and any footer graphic — so a
+ * letterhead can be uploaded as its full original page and still produce a clean, usable
+ * header banner instead of the whole page being shrunk into an unreadable sliver. */
 async function pdfFirstPageToPngBase64(file) {
   const pdfjsLib = await import('pdfjs-dist');
   pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
@@ -29,8 +32,35 @@ async function pdfFirstPageToPngBase64(file) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   await page.render({ canvasContext: ctx, viewport }).promise;
 
+  // Scan rows from the top, looking only within the top ~40% of the page (the header always
+  // lives there; a footer graphic further down is deliberately out of range and gets excluded).
+  // Find the last row that still has visible (non-white) content, then crop right after it.
+  const { width, height } = canvas;
+  const searchLimit = Math.floor(height * 0.4);
+  const imgData = ctx.getImageData(0, 0, width, searchLimit).data;
+  const WHITE_THRESHOLD = 248;
+  let lastContentRow = 0;
+  for (let y = 0; y < searchLimit; y++) {
+    const rowStart = y * width * 4;
+    for (let x = 0; x < width; x += 3) { // sample every 3rd pixel — plenty for detecting content, much faster
+      const i = rowStart + x * 4;
+      if (imgData[i + 3] > 10 && (imgData[i] < WHITE_THRESHOLD || imgData[i + 1] < WHITE_THRESHOLD || imgData[i + 2] < WHITE_THRESHOLD)) {
+        lastContentRow = y;
+        break;
+      }
+    }
+  }
+  const padding = Math.round(height * 0.015);
+  // If nothing detected (e.g. a near-blank top), fall back to a sensible default header height.
+  const cropHeight = lastContentRow > 10 ? Math.min(searchLimit, lastContentRow + padding) : Math.round(height * 0.16);
+
+  const cropped = document.createElement('canvas');
+  cropped.width = width;
+  cropped.height = cropHeight;
+  cropped.getContext('2d').drawImage(canvas, 0, 0, width, cropHeight, 0, 0, width, cropHeight);
+
   return new Promise((resolve) => {
-    canvas.toBlob((blob) => {
+    cropped.toBlob((blob) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result.split(',')[1]);
       reader.readAsDataURL(blob);

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import DashboardExport from '../dashboard/DashboardExport';
 import SectorPieChart from '../dashboard/SectorPieChart';
 import BulkDownload from '../soa/BulkDownload';
+import ManagementSummaryHistory from './ManagementSummaryHistory';
 import { buildDashboardAnalysis } from '@/lib/analysis';
 
 export default async function ReportsPage() {
@@ -39,6 +40,16 @@ export default async function ReportsPage() {
           and the AI-supported Management Summary Report with critical overdue invoices.
         </p>
         <DashboardExport companyName={company.name} reportDate={snapshot.report_date} analysis={analysis} snapshotId={snapshot.id} />
+      </div>
+
+      <div className="card">
+        <h4>Management Summary Report</h4>
+        <p style={{ fontSize: 13, color: 'var(--ink-500)' }}>
+          Auto-generated after every upload — executive narrative, ageing analysis, and critical overdue invoices (5+ months),
+          rendered on your company letterhead with a reference number. The button above downloads the latest one; browse every
+          report ever generated below.
+        </p>
+        <ManagementSummaryHistory />
       </div>
 
       <div className="card">

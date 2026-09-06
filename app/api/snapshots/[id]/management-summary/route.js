@@ -4,7 +4,7 @@ import { buildManagementSummaryData, generateNarrative } from '@/lib/managementS
 import { getCompanyBranding, getNextReferenceNumber } from '@/lib/branding';
 
 export async function GET(_req, { params }) {
-  const { error, company } = await requireUserAndCompany();
+  const { error, user, company } = await requireUserAndCompany();
   if (error) return error;
 
   const [snapshot] = await sql`select id from ar_snapshots where id = ${params.id} and company_id = ${company.id}`;
@@ -26,6 +26,7 @@ export async function GET(_req, { params }) {
     companyName: company.name,
     reportDate: data.snapshot.report_date,
     referenceNumber,
+    generatedByName: user.full_name,
     logo: branding.logo_base64 ? { base64: branding.logo_base64, mime: branding.logo_mime } : null,
     letterhead: branding.letterhead_base64 ? { base64: branding.letterhead_base64, mime: branding.letterhead_mime } : null,
     sectors: data.sectors,
