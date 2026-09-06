@@ -7,13 +7,21 @@ export async function GET(_req, { params }) {
   const { error, user, company } = await requireUserAndCompany();
   if (error) return error;
 
-  const [snapshot] = await sql`select id from ar_snapshots where id = ${params.id} and company_id = ${company.id}`;
+  const [snapshot] = await sql`select id, management_summary_ref from ar_snapshots where id = ${params.id} and company_id = ${company.id}`;
   if (!snapshot) return new Response('Not found', { status: 404 });
 
   const data = await buildManagementSummaryData(company.id, params.id);
   const { narrative, aiGenerated } = await generateNarrative({ companyName: company.name, sectors: data.sectors, ageing: data.ageing, comparison: data.comparison });
   const branding = await getCompanyBranding(company.id);
-  const referenceNumber = await getNextReferenceNumber(company.id);
+
+  // The reference number belongs to the SNAPSHOT, not to each generation event — so
+  // regenerating a report (e.g. after fixing the letterhead, or updating payments) always
+  // reuses the same number instead of burning a new one. Only issued once, on first generation.
+  let referenceNumber = snapshot.management_summary_ref;
+  if (!referenceNumber) {
+    referenceNumber = await getNextReferenceNumber(company.id);
+    await sql`update ar_snapshots set management_summary_ref = ${referenceNumber} where id = ${params.id}`;
+  }
 
   // Trim invoice-level arrays out of the bucket payload sent to the client — only totals/counts + the critical list are needed.
   const buckets = Object.fromEntries(Object.entries(data.ageing.buckets).map(([k, v]) => [k, { amount: v.amount, open: v.open, count: v.invoices.length }]));

@@ -66,19 +66,9 @@ export default function DashboardExport({ companyName, reportDate, analysis, sna
   async function exportManagementSummary() {
     setSummaryBusy(true);
     try {
-      // The Management Summary Report is one-per-snapshot: once generated (automatically
-      // on upload), every later "download" here reuses that exact saved file rather than
-      // regenerating — which would otherwise burn a new reference number each time.
-      const existing = await fetch(`/api/snapshots/${snapshotId}/management-summary-document`).then((r) => r.json());
-      if (existing) {
-        const fileRes = await fetch(`/api/documents/${existing.id}/download`);
-        if (!fileRes.ok) throw new Error('Could not retrieve the saved report.');
-        const blob = await fileRes.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = existing.filename || 'Management_Summary.pdf'; a.click(); URL.revokeObjectURL(url);
-        return;
-      }
-
+      // Always regenerate with the current branding/letterhead and current payment/ageing
+      // data — the reference number is tied to the snapshot (not the generation event), so
+      // this never issues a new number, and the saved history entry is updated in place.
       const res = await fetch(`/api/snapshots/${snapshotId}/management-summary`);
       if (!res.ok) throw new Error('Failed to generate Management Summary Report.');
       const data = await res.json();
@@ -96,7 +86,7 @@ export default function DashboardExport({ companyName, reportDate, analysis, sna
       <button disabled={busy} onClick={exportPdf}>Download Dashboard PDF</button>
       <button disabled={busy} className="secondary" onClick={exportXlsx}>Download Dashboard Excel</button>
       <button disabled={masterBusy} className="secondary" onClick={exportMasterAnalysis}>{masterBusy ? 'Building…' : 'Download Master Analysis Excel'}</button>
-      <button disabled={summaryBusy} className="secondary" onClick={exportManagementSummary}>{summaryBusy ? 'Loading…' : 'Management Summary Report'}</button>
+      <button disabled={summaryBusy} className="secondary" onClick={exportManagementSummary}>{summaryBusy ? 'Generating…' : 'Management Summary Report'}</button>
     </div>
   );
 }
