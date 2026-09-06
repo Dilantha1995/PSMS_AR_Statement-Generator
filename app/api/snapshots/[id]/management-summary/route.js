@@ -32,6 +32,7 @@ export async function GET(_req, { params }) {
     generatedByName: user.full_name,
     logo: branding.logo_base64 ? { base64: branding.logo_base64, mime: branding.logo_mime } : null,
     letterhead: branding.letterhead_base64 ? { base64: branding.letterhead_base64, mime: branding.letterhead_mime } : null,
+    letterheadFooter: branding.letterhead_footer_base64 ? { base64: branding.letterhead_footer_base64, mime: branding.letterhead_footer_mime } : null,
     sectors: data.sectors,
     buckets,
     critical,
