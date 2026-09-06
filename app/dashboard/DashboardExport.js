@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { buildDashboardPdf, buildDashboardXlsx } from '@/lib/dashboardBuilders';
 import { buildManagementSummaryPdf } from '@/lib/managementSummaryPdf';
 
@@ -16,6 +16,7 @@ export default function DashboardExport({ companyName, reportDate, analysis, sna
   const [busy, setBusy] = useState(false);
   const [masterBusy, setMasterBusy] = useState(false);
   const [summaryBusy, setSummaryBusy] = useState(false);
+  const summaryInFlight = useRef(false);
 
   async function saveDocument(filename, format, base64, kind = 'dashboard') {
     await fetch('/api/documents', {
@@ -64,6 +65,8 @@ export default function DashboardExport({ companyName, reportDate, analysis, sna
   }
 
   async function exportManagementSummary() {
+    if (summaryInFlight.current) return; // guards against a rapid double-click firing before the button visually disables
+    summaryInFlight.current = true;
     setSummaryBusy(true);
     try {
       // Always regenerate with the current branding/letterhead and current payment/ageing
@@ -78,7 +81,10 @@ export default function DashboardExport({ companyName, reportDate, analysis, sna
       await saveDocument(`${filename}.pdf`, 'pdf', base64, 'management_summary');
     } catch (e) {
       alert(e.message);
-    } finally { setSummaryBusy(false); }
+    } finally {
+      setSummaryBusy(false);
+      summaryInFlight.current = false;
+    }
   }
 
   return (
