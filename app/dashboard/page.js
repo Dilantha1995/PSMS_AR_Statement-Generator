@@ -5,6 +5,7 @@ import UploadForm from './UploadForm';
 import PaymentsEntry from './PaymentsEntry';
 import DashboardExport from './DashboardExport';
 import SectorPieChart from './SectorPieChart';
+import ManagementSummaryLink from './ManagementSummaryLink';
 import { buildDashboardAnalysis } from '@/lib/analysis';
 
 const fmt = (n) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2 });
@@ -133,7 +134,7 @@ export default async function DashboardPage() {
       <div className="card">
         <h4>Upload history</h4>
         <div className="table-scroll"><table>
-          <thead><tr><th>Uploaded</th><th>Report date</th><th>File</th><th>Invoices</th><th style={{ textAlign: 'right' }}>Total open</th><th>By</th></tr></thead>
+          <thead><tr><th>Uploaded</th><th>Report date</th><th>File</th><th>Invoices</th><th style={{ textAlign: 'right' }}>Total open</th><th>By</th><th>Mgt Summary</th></tr></thead>
           <tbody>
             {snapshots.map((s) => (
               <tr key={s.id}>
@@ -143,9 +144,10 @@ export default async function DashboardPage() {
                 <td>{s.invoice_count}</td>
                 <td style={{ textAlign: 'right' }}>{fmt(s.total_open)}</td>
                 <td>{s.uploaded_by_name || '—'}</td>
+                <td><ManagementSummaryLink snapshotId={s.id} /></td>
               </tr>
             ))}
-            {!snapshots.length && <tr><td colSpan={6}>No uploads yet — upload your first A/R ageing report above.</td></tr>}
+            {!snapshots.length && <tr><td colSpan={7}>No uploads yet — upload your first A/R ageing report above.</td></tr>}
           </tbody>
         </table></div>
       </div>
