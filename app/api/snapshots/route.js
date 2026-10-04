@@ -1,6 +1,7 @@
 import { sql } from '@/lib/db';
 import { parseArWorkbook, sectorOf } from '@/lib/arEngine';
 import { requireUserAndCompany } from '@/lib/session';
+import { fmtDate } from '@/lib/format';
 
 /** List past uploads (the history view) for the current company. */
 export async function GET() {
@@ -53,6 +54,14 @@ export async function POST(req) {
     }
   }
 
+  // The report currently on file — used below to auto-log customers who had a
+  // balance there but no longer appear in this (newer) file.
+  const [previous] = await sql`
+    select id, report_date_parsed from ar_snapshots
+    where company_id = ${company.id}
+    order by report_date_parsed desc nulls last, uploaded_at desc limit 1
+  `;
+
   const [snapshot] = await sql`
     insert into ar_snapshots (company_id, report_date, report_date_parsed, source_filename, uploaded_by, raw_diagnostics)
     values (${company.id}, ${parsed.reportDate}, ${parsed.reportDateISO}, ${file.name}, ${user.id}, ${JSON.stringify(parsed.diagnostics)})
@@ -92,8 +101,14 @@ export async function POST(req) {
       `;
     }
 
+    // Auto follow-up log: one entry per customer recording that their A/R
+    // balance was refreshed by this upload, and by whom. Inserted in a single
+    // statement so it's all-or-nothing alongside the snapshot.
+    const loggedCount = await logBalanceUpdates({ company, user, snapshot, parsed, customerIdByName, previous });
+
     return Response.json({
       snapshot,
+      followupsLogged: loggedCount,
       diagnostics: parsed.diagnostics,
       customersFound: uniqueCustomers.size,
       invoicesProcessed: parsed.invoices.length,
@@ -105,4 +120,50 @@ export async function POST(req) {
     await sql`delete from ar_snapshots where id = ${snapshot.id}`;
     return new Response(`Upload failed while saving invoice data: ${e.message}. Nothing was saved — please try again.`, { status: 500 });
   }
+}
+
+const money = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+async function logBalanceUpdates({ company, user, snapshot, parsed, customerIdByName, previous }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const asOf = parsed.reportDate ? ` (report as of ${parsed.reportDate})` : '';
+  const prefix = `AR balances updated on ${today} by ${user.full_name}`;
+
+  const openByCustomerId = new Map();
+  for (const inv of parsed.invoices) {
+    const id = customerIdByName[inv.customerName];
+    openByCustomerId.set(id, (openByCustomerId.get(id) || 0) + Number(inv.open || 0));
+  }
+
+  const ids = [];
+  const notes = [];
+  for (const [id, open] of openByCustomerId) {
+    ids.push(id);
+    notes.push(`${prefix} — open balance ${money(open)}${asOf}`);
+  }
+
+  // Customers on the previous report who've dropped out of this one have been
+  // cleared (or written off) — log them too so their history shows the change.
+  // Skipped for backfills of an older report, where "dropped out" means nothing.
+  const isNewest = previous && (!parsed.reportDateISO || !previous.report_date_parsed
+    || parsed.reportDateISO > fmtDate(previous.report_date_parsed));
+  if (isNewest) {
+    const dropped = await sql`
+      select distinct customer_id from ar_invoices
+      where snapshot_id = ${previous.id} and customer_id is not null
+    `;
+    for (const { customer_id } of dropped) {
+      if (openByCustomerId.has(customer_id)) continue;
+      ids.push(customer_id);
+      notes.push(`${prefix} — no open balance in this report${asOf}`);
+    }
+  }
+
+  if (!ids.length) return 0;
+  await sql`
+    insert into followups (company_id, customer_id, followup_date, note, outcome, logged_by)
+    select ${company.id}, t.customer_id, ${today}, t.note, 'other', ${user.id}
+    from unnest(${ids}::uuid[], ${notes}::text[]) as t(customer_id, note)
+  `;
+  return ids.length;
 }

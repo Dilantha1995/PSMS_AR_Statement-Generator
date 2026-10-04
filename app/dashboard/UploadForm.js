@@ -63,7 +63,7 @@ export default function UploadForm() {
       }
       setPendingFile(null);
       setFileName('');
-      setMessage({ kind: 'success', text: `Saved. ${data.invoicesProcessed} invoice lines across ${data.customersFound} customers.` });
+      setMessage({ kind: 'success', text: `Saved. ${data.invoicesProcessed} invoice lines across ${data.customersFound} customers.${data.followupsLogged ? ` Balance update logged in the follow-up history for ${data.followupsLogged} customers.` : ''}` });
       router.refresh();
       // Every successful upload automatically generates a Management Summary Report.
       await generateManagementSummary(data.snapshot.id);
