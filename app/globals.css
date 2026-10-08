@@ -57,6 +57,16 @@ label { font-size: 13px; color: var(--ink-500); }
 button { background: var(--green-700); color: #fff; border: none; cursor: pointer; font-size: 14px; min-height: 40px; }
 button.secondary { background: var(--surface); color: var(--green-700); border: 1px solid var(--green-700); }
 
+/* ---------- Auto Update AR: main column + Claude in Chrome prompts on the right ---------- */
+.ar-update-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+.ar-update-main { grid-column: 1; grid-row: 1; min-width: 0; }
+.ar-update-aside { grid-column: 2; grid-row: 1; position: sticky; top: 110px; }
+.prompt-box { margin: 0; max-height: 220px; overflow: auto; white-space: pre-wrap; word-break: break-word; font-size: 12px; line-height: 1.45; background: var(--green-50); border: 1px solid var(--ink-100); border-radius: 8px; padding: 10px; }
+@media (max-width: 1000px) {
+  .ar-update-layout { grid-template-columns: minmax(0, 1fr); }
+  .ar-update-main, .ar-update-aside { grid-column: 1; grid-row: auto; position: static; }
+}
+
 /* ---------- Mobile breakpoint ---------- */
 @media (max-width: 760px) {
   .app-main { padding: 14px 10px 40px; }

@@ -13,6 +13,29 @@ const DEFAULT_VENDOR_IDS = { PSMS: '505965' };
 const SOURCE_LABELS = { bandeyri: 'Bandeyri', manual: 'Edited', file: 'In file', last: 'Last upload' };
 const fmt = (n) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// Prompts to paste into the Claude in Chrome side panel. A web page can't start
+// the extension itself, so these are copied from the panel on the right.
+const APP_URL = 'https://psms-ar-statement-generator.vercel.app/ar-update';
+
+const qbExportPrompt = () => `Export the A/R Ageing Detail report from QuickBooks Online and get it ready for AR Suite:
+1. In the QuickBooks Online tab, go to Reports → Standard → A/R Ageing Detail.
+2. Click Customize → Rows/Columns → Change columns. Tick "PO Number" and move it so it sits directly after the "Number" column. Click Run report.
+3. Check the report's "As of" date is today, then click Export → Export to Excel.
+4. Switch to the AR Suite tab (${APP_URL}).
+5. Tell me the exported file's name so I can drag it into the "Drop the QuickBooks export" box, then stop.
+Do not change any other QuickBooks settings and do not upload anything yourself.`;
+
+const bandeyriPrompt = (vendorId, batches) => `Look up GVT invoice payment statuses on Bandeyri and bring them back to AR Suite:
+1. Open ${BANDEYRI_URL} in a new tab.
+2. For each batch below, one at a time:
+   a. Enter Vendor ID ${vendorId || '(ask me)'} and paste the batch's invoice numbers exactly as given (comma-separated, no spaces).
+   b. Ask me to tick the "I'm not a robot" check, wait until I say done, then submit.
+   c. When the "Status Information" box appears, copy all of its text, then close the box.
+3. Switch to the AR Suite tab (${APP_URL}), paste everything you copied into the "Paste the Bandeyri results here" box and click "Read statuses".
+4. Tell me how many statuses it read, then stop. Do not click "Fill columns & upload".
+
+${batches.map((b, i) => `Batch ${i + 1}: ${b.join(',')}`).join('\n')}`;
+
 function readStored(key) { try { return localStorage.getItem(key); } catch { return null; } }
 function writeStored(key, v) { try { localStorage.setItem(key, v); } catch { /* private mode */ } }
 
@@ -166,7 +189,27 @@ export default function AutoUpdateClient() {
   if (!lookups) return <p style={{ color: 'var(--ink-500)' }}>Loading…</p>;
 
   return (
-    <div>
+    <div className="ar-update-layout">
+      <aside className="ar-update-aside">
+        <div className="card">
+          <h4 style={{ marginTop: 0 }}>Run with Claude in Chrome</h4>
+          <p style={{ marginTop: 0, color: 'var(--ink-500)', fontSize: 13 }}>
+            Copy a prompt and paste it into the Claude side panel in this browser.
+          </p>
+          <PromptBox title="1. Export from QuickBooks" text={qbExportPrompt()} copied={copied === 'qbPrompt'} onCopy={(t) => copy(t, 'qbPrompt')} />
+          {batches.length > 0 && (
+            <PromptBox title={`2. Check ${gvtNumbers.length} GVT invoices on Bandeyri`} text={bandeyriPrompt(vendorId, batches)}
+              copied={copied === 'bandeyriPrompt'} onCopy={(t) => copy(t, 'bandeyriPrompt')} />
+          )}
+          {!qb && (
+            <p style={{ color: 'var(--ink-500)', fontSize: 12, marginBottom: 0 }}>
+              The Bandeyri prompt appears here once the export is loaded — it lists this month&apos;s GVT invoices in batches of 10.
+            </p>
+          )}
+        </div>
+      </aside>
+
+      <div className="ar-update-main">
       <div className="card">
         <h4>1. Drop the QuickBooks export</h4>
         <p style={{ marginTop: 0, color: 'var(--ink-500)', fontSize: 13 }}>
@@ -308,6 +351,22 @@ export default function AutoUpdateClient() {
           {summaryStatus && <p style={{ color: 'var(--ink-500)', fontSize: 13 }}>{summaryStatus}</p>}
         </div>
       )}
+      </div>
+    </div>
+  );
+}
+
+function PromptBox({ title, text, copied, onCopy }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <strong style={{ fontSize: 13 }}>{title}</strong>
+        <button type="button" className={copied ? '' : 'secondary'} onClick={() => onCopy(text)}
+          style={{ fontSize: 12, minHeight: 0, padding: '4px 10px', flexShrink: 0 }}>
+          {copied ? 'Copied ✓' : 'Copy prompt'}
+        </button>
+      </div>
+      <pre className="prompt-box">{text}</pre>
     </div>
   );
 }
