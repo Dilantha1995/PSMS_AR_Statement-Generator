@@ -28,6 +28,12 @@ export default function NavBar({ fullName, companyCode, isAdmin, hasCompany }) {
           {companyCode && <span className="company-pill">{companyCode}</span>}
         </div>
         <div className="topnav-right">
+          {hasCompany && (
+            <Link href="/ar-update" className={`auto-update-btn ${pathname === '/ar-update' ? 'active' : ''}`} onClick={() => setOpen(false)}
+              title="Fill PVT/GVT and Bandeyri status into the QuickBooks export and upload it">
+              ⟳ Auto Update AR
+            </Link>
+          )}
           <span className="topnav-name">{fullName}</span>
           <Link href="/account/change-password" className="change-pw-desktop">Change Password</Link>
           <button className="hamburger" aria-label="Menu" onClick={() => setOpen((v) => !v)}>

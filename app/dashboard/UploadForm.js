@@ -1,16 +1,7 @@
 'use client';
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { buildManagementSummaryPdf } from '@/lib/managementSummaryPdf';
-
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
+import { generateManagementSummary } from '@/lib/managementSummaryClient';
 
 export default function UploadForm() {
   const [busy, setBusy] = useState(false);
@@ -21,25 +12,6 @@ export default function UploadForm() {
   const [summaryStatus, setSummaryStatus] = useState('');
   const fileInputRef = useRef(null);
   const router = useRouter();
-
-  async function generateManagementSummary(snapshotId) {
-    setSummaryStatus('Generating management summary report…');
-    try {
-      const res = await fetch(`/api/snapshots/${snapshotId}/management-summary`);
-      if (!res.ok) throw new Error('Could not build summary data.');
-      const data = await res.json();
-      const { doc, filename } = await buildManagementSummaryPdf(data);
-      const base64 = doc.output('datauristring').split(',')[1];
-      await fetch('/api/documents', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind: 'management_summary', format: 'pdf', filename: `${filename}.pdf`, file_base64: base64, snapshot_id: snapshotId }),
-      });
-      doc.save(`${filename}.pdf`);
-      setSummaryStatus(`Management Summary Report ready${data.aiGenerated ? ' (AI-generated)' : ''} — also saved to Documents.`);
-    } catch (e) {
-      setSummaryStatus(`Could not generate management summary: ${e.message}`);
-    }
-  }
 
   async function doUpload(file, force) {
     setBusy(true);
@@ -66,7 +38,8 @@ export default function UploadForm() {
       setMessage({ kind: 'success', text: `Saved. ${data.invoicesProcessed} invoice lines across ${data.customersFound} customers.${data.followupsLogged ? ` Balance update logged in the follow-up history for ${data.followupsLogged} customers.` : ''}` });
       router.refresh();
       // Every successful upload automatically generates a Management Summary Report.
-      await generateManagementSummary(data.snapshot.id);
+      setSummaryStatus('Generating management summary report…');
+      setSummaryStatus(await generateManagementSummary(data.snapshot.id));
     } finally {
       setBusy(false);
     }
