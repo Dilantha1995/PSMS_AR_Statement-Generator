@@ -19,6 +19,8 @@ a { color: var(--green-700); text-decoration: none; }
 .company-pill { background: var(--green-100); color: var(--green-700); padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; flex-shrink: 0; }
 .change-pw-desktop { font-size: 13px; color: var(--ink-500); white-space: nowrap; }
 .change-pw-desktop:hover { color: var(--green-700); }
+.auto-update-btn { font-size: 12px; font-weight: 700; color: var(--green-700); border: 1px solid var(--green-700); border-radius: 999px; padding: 4px 12px; white-space: nowrap; }
+.auto-update-btn:hover, .auto-update-btn.active { background: var(--green-700); color: #fff; }
 .account-link-mobile { display: none; }
 
 .hamburger { display: none; flex-direction: column; justify-content: center; gap: 4px; width: 34px; height: 34px; background: transparent; border: 1px solid var(--ink-100); border-radius: 8px; padding: 0; }
