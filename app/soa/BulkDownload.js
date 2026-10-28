@@ -30,10 +30,11 @@ export default function BulkDownload({ snapshotId, companyName, reportDate }) {
 
       // Root-level files: Dashboard PDF/Excel + Master Analysis workbook + Management
       // Summary — matching the original tool's Total Output pack (root files + GVT/PVT/Semi Pvt subfolders).
+      const logo = await loadCompanyLogo(); // once, for the Dashboard PDF and every statement
+
       if (analysisRes.ok) {
         setProgress('Building dashboard report…');
         const { analysis } = await analysisRes.json();
-        const logo = await loadCompanyLogo();
         const { doc, filename: pdfName } = buildDashboardPdf({ companyName, reportDate, analysis, logo });
         zip.file(`${pdfName}.pdf`, doc.output('blob'));
         fileCount++;
@@ -69,7 +70,7 @@ export default function BulkDownload({ snapshotId, companyName, reportDate }) {
 
         for (const kind of kinds) {
           const pdfArgs = { companyName, reportDate, customerName: customer.name, kind, invoices: customer.invoices };
-          const { doc, filename: pdfName } = buildCustomerPdf(pdfArgs);
+          const { doc, filename: pdfName } = buildCustomerPdf({ ...pdfArgs, logo });
           folder.file(`${pdfName}.pdf`, doc.output('blob'));
           fileCount++;
 
