@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef } from 'react';
-import { buildDashboardPdf, buildDashboardXlsx } from '@/lib/dashboardBuilders';
+import { buildDashboardPdf, buildDashboardXlsx, loadCompanyLogo } from '@/lib/dashboardBuilders';
 import { buildManagementSummaryPdf } from '@/lib/managementSummaryPdf';
 
 function blobToBase64(blob) {
@@ -28,7 +28,8 @@ export default function DashboardExport({ companyName, reportDate, analysis, sna
   async function exportPdf() {
     setBusy(true);
     try {
-      const { doc, filename } = buildDashboardPdf({ companyName, reportDate, analysis });
+      const logo = await loadCompanyLogo();
+      const { doc, filename } = buildDashboardPdf({ companyName, reportDate, analysis, logo });
       doc.save(`${filename}.pdf`);
       const base64 = doc.output('datauristring').split(',')[1];
       await saveDocument(`${filename}.pdf`, 'pdf', base64);
