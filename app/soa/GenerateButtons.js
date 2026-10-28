@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { buildCustomerPdf, buildCustomerXlsx } from '@/lib/statementBuilders';
+import { loadCompanyLogo } from '@/lib/dashboardBuilders';
 
 const KINDS_GVT = [
   ['pending_moft', 'Pending Submit to MOFT'],
@@ -29,7 +30,7 @@ export default function GenerateButtons({ customerId, customerName, isGvt, compa
       const args = { companyName, reportDate, customerName, kind, invoices };
       let filename, base64;
       if (format === 'pdf') {
-        const built = buildCustomerPdf(args);
+        const built = buildCustomerPdf({ ...args, logo: await loadCompanyLogo() });
         built.doc.save(`${built.filename}.pdf`);
         filename = `${built.filename}.pdf`;
         base64 = built.doc.output('datauristring').split(',')[1];
