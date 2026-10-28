@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import JSZip from 'jszip';
 import { buildCustomerPdf, buildCustomerXlsx } from '@/lib/statementBuilders';
-import { buildDashboardPdf, buildDashboardXlsx } from '@/lib/dashboardBuilders';
+import { buildDashboardPdf, buildDashboardXlsx, loadCompanyLogo } from '@/lib/dashboardBuilders';
 import { buildManagementSummaryPdf } from '@/lib/managementSummaryPdf';
 
 const SECTOR_FOLDER = { GVT: 'GVT', PVT: 'PVT', SEMI: 'Semi Pvt' };
@@ -33,7 +33,8 @@ export default function BulkDownload({ snapshotId, companyName, reportDate }) {
       if (analysisRes.ok) {
         setProgress('Building dashboard report…');
         const { analysis } = await analysisRes.json();
-        const { doc, filename: pdfName } = buildDashboardPdf({ companyName, reportDate, analysis });
+        const logo = await loadCompanyLogo();
+        const { doc, filename: pdfName } = buildDashboardPdf({ companyName, reportDate, analysis, logo });
         zip.file(`${pdfName}.pdf`, doc.output('blob'));
         fileCount++;
         const { blob, filename: xlsxName } = buildDashboardXlsx({ companyName, reportDate, analysis });
